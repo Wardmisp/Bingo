@@ -29,4 +29,21 @@ class ServerRepository(private val apiService: ApiService) {
         }
     }
 
+    // New function to handle sending data to the server
+    suspend fun submitData(submission: Submission): ApiResult<Unit> {
+        return try {
+            val response = apiService.submitData(submission)
+            if (response.isSuccessful) {
+                // If the submission was successful, return a Success result.
+                // We use Unit here since the server's response has no body.
+                ApiResult.Success(Unit)
+            } else {
+                // If the response code indicates an error, wrap the error message.
+                ApiResult.Error("API Error: ${response.code()} - ${response.message()}")
+            }
+        } catch (e: Exception) {
+            // Catch any network or other exceptions.
+            ApiResult.Error("Network Error: ${e.message}")
+        }
+    }
 }

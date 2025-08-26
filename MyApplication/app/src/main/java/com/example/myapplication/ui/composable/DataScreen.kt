@@ -19,6 +19,17 @@ import com.example.myapplication.DataViewModelFactory
 import com.example.myapplication.network.ApiResult
 import com.example.myapplication.network.RetrofitInstance
 import com.example.myapplication.network.ServerRepository
+
+@Composable
+fun SubmitDataScreen(viewModel: DataViewModel = viewModel()) {
+    Column {
+        Text("Click the button to send a message to the server.")
+
+        Button(onClick = { viewModel.submitData("Hello from my Android app!") }) {
+            Text("Send Message")
+        }
+    }
+}
 @Composable
 fun DataScreen(modifier : Modifier) {
     // 1. Instantiate the repository.
@@ -72,4 +83,5 @@ fun DataScreen(modifier : Modifier) {
             }
         }
     }
+    SubmitDataScreen()
 }

@@ -8,6 +8,7 @@ import kotlinx.coroutines.launch
 import com.example.myapplication.network.ServerRepository
 import com.example.myapplication.network.ApiResult
 import com.example.myapplication.network.ReceivedDataModel
+import com.example.myapplication.network.Submission
 
 // This ViewModel is responsible for getting the data from the repository
 // and exposing the UI state to the Composable.
@@ -34,6 +35,14 @@ class DataViewModel(private val repository: ServerRepository) : ViewModel() {
             // Call the repository function and update the state based on the result.
             val result = repository.fetchData()
             _uiState.value = result
+        }
+    }
+
+    fun submitData(message: String) {
+        viewModelScope.launch {
+            val submission = Submission(message)
+            // Call the repository function to send the data
+            repository.submitData(submission)
         }
     }
 }
