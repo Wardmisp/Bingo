@@ -36,16 +36,6 @@ def submit_data():
     }
     return jsonify(response)
 
-
-# A sample API endpoint to send data to the Android app.
-@app.route('/api/data')
-def get_data():
-    data = {
-        "title": "Latest News",
-        "content": "This is a message from your deployed Python web service on Render."
-    }
-    return jsonify(data)
-
 if __name__ == '__main__':
     # Use a hardcoded port for local development
     # Gunicorn will handle the port in production on Render
