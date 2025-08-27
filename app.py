@@ -5,14 +5,19 @@ app = Flask(__name__)
 # A list to store messages received from the app
 messages = []
 
-# This is your existing route that responds with JSON
 @app.route('/')
+def serve_page():
+    # You must have an 'index.html' file in a 'templates' folder
+    return render_template('index.html')
+
+# This route provides the JSON data to the JavaScript code
+@app.route('/api/data')
 def get_data():
     return jsonify({
-      "message": "Hello from the Python backend!",
-      "messages_received": messages # This key will contain your list of messages
+        "message": "Hello from the Python backend!",
+        "messages_received": messages
     })
-
+    
 # Your new route to receive messages via POST
 @app.route('/submit', methods=['POST'])
 def submit_data():
