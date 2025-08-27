@@ -6,7 +6,7 @@ import retrofit2.http.GET
 import retrofit2.http.POST
 
 interface ApiService {
-    @GET("/api/data")
+    @GET("/")
     suspend fun getData(): Response<ReceivedDataModel>
 
     @POST("/submit")

@@ -9,6 +9,7 @@ sealed class ApiResult<out T> {
     object Loading : ApiResult<Nothing>()
 }
 
+//@TODO : REPOSITORY THEMATIQUE (USER, CARTE...)
 class ServerRepository(private val apiService: ApiService) {
     // The suspend keyword indicates that this function is a coroutine.
     // It can be called from a coroutine and won't block the main thread.
