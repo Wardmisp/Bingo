@@ -63,8 +63,8 @@ fun DataScreen(modifier : Modifier) {
                 verticalArrangement = Arrangement.Center,
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Text(text = "Title: ${data.title}")
-                Text(text = "Content: ${data.content}")
+                Text(text = "Message: ${data.message}")
+                Text(text = "Count: ${data.messagesReceived.size}")
             }
         }
         is ApiResult.Error -> {
