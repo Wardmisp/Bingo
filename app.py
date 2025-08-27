@@ -2,10 +2,40 @@ from flask import Flask, jsonify, request
 
 app = Flask(__name__)
 
-# A basic route for your Android app to connect to.
+# A list to store messages received from the app
+messages = []
+
+# This is your existing route that responds with JSON
 @app.route('/')
-def home():
-    return jsonify(message="Hello from the Python backend!")
+def get_data():
+    return jsonify({
+      "message": "Hello from the Python backend!",
+      "messages_received": messages # This key will contain your list of messages
+    })
+
+# Your new route to receive messages via POST
+@app.route('/submit', methods=['POST'])
+def submit_data():
+    data = request.get_json()
+    
+    if not data or 'message' not in data:
+        return jsonify({"error": "Invalid data provided"}), 400
+    
+    received_message = data['message']
+    
+    # Add the new message to the list
+    messages.append(received_message)
+    
+    # Print it to the console for your logs
+    print(f"Received message from app: {received_message}")
+    
+    # Send back a confirmation response
+    response = {
+        "status": "success",
+        "message": "Message received and added to list."
+    }
+    return jsonify(response)
+
 
 # A sample API endpoint to send data to the Android app.
 @app.route('/api/data')
@@ -16,27 +46,6 @@ def get_data():
     }
     return jsonify(data)
 
-# A new endpoint to receive data via a POST request
-@app.route('/submit', methods=['POST'])
-def submit_data():
-    # Get the JSON data from the request body
-    data = request.get_json()
-    
-    # Check if the data is valid and has a 'message' field
-    if not data or 'message' not in data:
-        return jsonify({"error": "Invalid data provided"}), 400
-    
-    received_message = data['message']
-    
-    # Print the received message to the server's console
-    print(f"Received message from app: {received_message}")
-    
-    # Send back a confirmation response
-    response = {
-        "status": "success",
-        "message": "Message received and processed."
-    }
-    return jsonify(response)
 if __name__ == '__main__':
     # Use a hardcoded port for local development
     # Gunicorn will handle the port in production on Render
