@@ -39,7 +39,7 @@
 
         .bingo-grid {
             display: grid;
-            grid-template-columns: repeat(3, 1fr);
+            grid-template-columns: repeat(5, 1fr); /* Changed to 5 columns */
             gap: 5px;
             margin-top: 15px;
         }
@@ -50,11 +50,18 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            background-color: #e9ecef;
+            background-color: #e9ecef; /* Default background for number cells */
             border: 1px solid #aaa;
             border-radius: 8px;
             font-size: 24px;
             font-weight: bold;
+            color: #333; /* Default text color for numbers */
+        }
+
+        .blank-cell {
+            background-color: #000; /* Black background for blank cells */
+            color: #000; /* Make text black as well so nothing shows up */
+            border: 1px solid #333; /* Slightly darker border for contrast */
         }
     </style>
 </head>
@@ -100,12 +107,21 @@
                         const gridDiv = document.createElement('div');
                         gridDiv.className = 'bingo-grid';
 
-                        // Loop through the 3x3 grid of numbers from the JSON data
+                        // Loop through the grid of numbers from the JSON data
                         player.bingo_card.forEach(row => {
                             row.forEach(number => {
                                 const cell = document.createElement('div');
                                 cell.className = 'cell';
-                                cell.textContent = number;
+
+                                // Check if the number is null (a blank space)
+                                if (number !== null) {
+                                    cell.textContent = number;
+                                    cell.style.color = '#333';
+                                } else {
+                                    cell.textContent = ''; // Leave the cell blank
+                                    cell.classList.add('blank-cell');
+                                }
+
                                 gridDiv.appendChild(cell);
                             });
                         });
