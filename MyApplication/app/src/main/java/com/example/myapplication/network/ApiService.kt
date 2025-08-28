@@ -15,9 +15,9 @@ interface ApiService {
     @POST("/submit")
     suspend fun submitData(@Body submission: Submission): Response<Unit>
 
-    @GET("/players")
+    @GET("players")
     suspend fun getPlayers(): Response<List<Player>>
 
-    @POST("/players/register")
+    @POST("register-player")
     suspend fun registerPlayer(@Body playerRegistration: PlayerRegistration): Response<RegistrationResponse>
 }

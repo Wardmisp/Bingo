@@ -1,23 +1,50 @@
 package com.example.myapplication
 
-// This ViewModel is responsible for getting the data from the repository
-// and exposing the UI state to the Composable.
 import PlayersRepository
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.myapplication.network.ApiResult
 import com.example.myapplication.player.Player
+import com.example.myapplication.ui.utils.UiState
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 class DataViewModel(private val repository: PlayersRepository) : ViewModel() {
 
-    // Expose the players list from the repository as a StateFlow
-    val players: StateFlow<List<Player>> = repository.players
+    // Internal mutable StateFlow
+    private val _uiState = MutableStateFlow<UiState>(UiState.Loading)
+    // Public immutable StateFlow for the UI to observe
+    val uiState: StateFlow<UiState> = _uiState.asStateFlow()
 
     init {
+        fetchPlayers()
+    }
+
+    // Function to fetch all players from the repository
+    fun fetchPlayers() {
         viewModelScope.launch {
-            repository.fetchPlayers()
+            // Set the state to Loading before the network call
+            _uiState.value = UiState.Loading
+
+            val result = repository.fetchPlayers() // Assuming a getPlayers() function in your repository
+
+            when (result) {
+                is ApiResult.Success -> {
+                    // Update the state to Success with the list of players
+                    _uiState.value = UiState.Success(result.data)
+                }
+                is ApiResult.Error -> {
+                    // Update the state to Error with the error message
+                    _uiState.value = UiState.Error(result.message)
+                }
+
+                ApiResult.Loading -> {
+                // Update the state to Loading
+                _uiState.value = UiState.Loading
+            }
+            }
         }
     }
 
@@ -26,9 +53,11 @@ class DataViewModel(private val repository: PlayersRepository) : ViewModel() {
         viewModelScope.launch {
             if (playerName.isNotBlank()) {
                 val result = repository.registerPlayer(playerName)
-                // You can add logic here to handle success or error messages
                 if (result is ApiResult.Success) {
-                    repository.fetchPlayers()
+                    // Refresh the UI by fetching the players again
+                    fetchPlayers()
+                } else if (result is ApiResult.Error) {
+                    _uiState.value = UiState.Error(result.message)
                 }
             }
         }

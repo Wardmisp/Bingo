@@ -1,6 +1,7 @@
 package com.example.myapplication
 
 import PlayersRepository
+import SetGameScreen
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -14,7 +15,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.myapplication.network.RetrofitInstance
-import com.example.myapplication.ui.composable.SetGameScreen
 import com.example.myapplication.ui.theme.MyApplicationTheme
 
 class MainActivity : ComponentActivity() {

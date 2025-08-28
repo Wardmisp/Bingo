@@ -1,37 +1,24 @@
 // src/main/java/com/example/bingoapp/repository/PlayersRepository.kt
+
 import com.example.myapplication.network.ApiResult
 import com.example.myapplication.network.ApiService
 import com.example.myapplication.player.Player
 import com.example.myapplication.player.PlayerRegistration
 import com.example.myapplication.player.RegistrationResponse
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-
 import retrofit2.HttpException
 
 class PlayersRepository(private val apiService: ApiService) {
 
-    // A private mutable StateFlow to hold the list of players.
-    // This acts as the single source of truth for player data.
-    private val _players = MutableStateFlow<List<Player>>(emptyList())
-
-    // A public read-only StateFlow that the ViewModel can collect from.
-    // This prevents the UI or ViewModel from directly modifying the list.
-    val players: StateFlow<List<Player>> = _players
-
-    /**
-     * Fetches all players from the server and updates the local state.
-     * @return An ApiResult indicating success or failure.
-     */
-    suspend fun fetchPlayers(): ApiResult<Unit> {
+    suspend fun fetchPlayers(): ApiResult<List<Player>> {
         return try {
             val response = apiService.getPlayers()
             if (response.isSuccessful) {
-                // Update the internal StateFlow with the new data from the server.
-                response.body()?.let {
-                    _players.value = it
+                val players = response.body()
+                if (players != null) {
+                    ApiResult.Success(players)
+                } else {
+                    ApiResult.Error("Response body is empty.")
                 }
-                ApiResult.Success(Unit)
             } else {
                 ApiResult.Error("API Error: ${response.code()} - ${response.message()}")
             }
