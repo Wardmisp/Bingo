@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, render_template
 import logging
 
 app = Flask(__name__)
@@ -13,16 +13,20 @@ players_db = [
     {"id": 3, "name": "Charlie"}
 ]
 
+@app.route('/')
+def serve_page():
+    """
+    Serves the index.html page for a web browser.
+    """
+    logging.info("GET request received for / endpoint. Serving index.html.")
+    return render_template('index.html')
+
 @app.route('/players', methods=['GET'])
 def get_players():
     """
-    Returns a list of all registered players.
+    Returns a list of all registered players as JSON.
     """
     logging.info("GET request received for /players endpoint.")
-    
-    # Simulate a network delay for testing purposes
-    # import time
-    # time.sleep(1)
     
     # Log the data being sent
     logging.info(f"Sending player data: {players_db}")
@@ -63,4 +67,5 @@ def register_player():
         return jsonify({"error": "An internal server error occurred."}), 500
 
 if __name__ == '__main__':
-    app.run(port=3000)
+    # In order to access it from everywhere
+    app.run(host='0.0.0.0', port=5000)
