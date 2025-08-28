@@ -1,5 +1,6 @@
 package com.example.myapplication
 
+import androidx.compose.runtime.mutableStateListOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -9,10 +10,27 @@ import com.example.myapplication.network.ServerRepository
 import com.example.myapplication.network.ApiResult
 import com.example.myapplication.network.ReceivedDataModel
 import com.example.myapplication.network.Submission
+import com.example.myapplication.player.Player
 
 // This ViewModel is responsible for getting the data from the repository
 // and exposing the UI state to the Composable.
 class DataViewModel(private val repository: ServerRepository) : ViewModel() {
+
+    /*TODO : create a player repository and get information from it, stores nothing here*/
+    val players = mutableStateListOf<Player>( Player("Player01"), Player("Player02"))
+
+    fun addPlayer(playerName: String) {
+        if (playerName.isNotBlank()) {
+            val newPlayer = Player(name = playerName)
+            players.add(newPlayer)
+            // You can also perform repository operations here
+            // e.g., viewModelScope.launch { repository.addPlayer(newPlayer) }
+        }
+    }
+
+    fun removePlayer(player: Player) {
+        players.remove(player)
+    }
 
     // MutableStateFlow to hold the current state of our API call.
     // It's private so only the ViewModel can change its value.
