@@ -1,4 +1,4 @@
-package com.example.myapplication.ui.composable
+/*package com.example.myapplication.ui.composable
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -25,7 +25,7 @@ fun SubmitDataScreen(viewModel: DataViewModel = viewModel()) {
     Column {
         Text("Click the button to send a message to the server.")
 
-        Button(onClick = { viewModel.submitData("Hello from my Android app!") }) {
+        Button(onClick = {  }) {
             Text("Send Message")
         }
     }
@@ -84,4 +84,4 @@ fun DataScreen(modifier : Modifier) {
         }
     }
     SubmitDataScreen()
-}
+}*/

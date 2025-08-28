@@ -20,6 +20,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -39,6 +40,7 @@ fun SetGameScreen(
     modifier: Modifier = Modifier,
     viewModel: DataViewModel = viewModel()
 ) {
+    val players by viewModel.players.collectAsState()
     var playerName by remember { mutableStateOf("") }
 
     Column(
@@ -56,7 +58,7 @@ fun SetGameScreen(
                 .heightIn(max = 400.dp) // Gives the board a maximum height
                 .padding(8.dp)
         ) {
-            items(viewModel.players) { player ->
+            items(players) { player ->
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()

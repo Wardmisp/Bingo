@@ -1,5 +1,6 @@
 package com.example.myapplication
 
+import PlayersRepository
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -11,23 +12,28 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.myapplication.network.RetrofitInstance
-import com.example.myapplication.network.ServerRepository
 import com.example.myapplication.ui.composable.SetGameScreen
 import com.example.myapplication.ui.theme.MyApplicationTheme
 
 class MainActivity : ComponentActivity() {
+    private lateinit var playersRepository: PlayersRepository
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        val viewModel = DataViewModel(
-        repository = ServerRepository(apiService = RetrofitInstance.apiService))
+
+        // Instantiate your repository
+        playersRepository = PlayersRepository(apiService = RetrofitInstance.apiService)
+
         enableEdgeToEdge()
         setContent {
             MyApplicationTheme {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    /*DataScreen(
-                        modifier = Modifier.padding(innerPadding)
-                    )*/
+                    // Use a ViewModelFactory to create the ViewModel with the repository
+                    val viewModel: DataViewModel = viewModel(
+                        factory = DataViewModelFactory(playersRepository)
+                    )
                     SetGameScreen(
                         modifier = Modifier.padding(innerPadding),
                         viewModel = viewModel
