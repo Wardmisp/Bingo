@@ -45,7 +45,7 @@ def register_player():
     """
     try:
         data = request.get_json()
-        player_name = data.get('player_name')
+        player_name = data.get('name')
         
         # Log the received request data
         logging.info(f"POST request received for /register-player. Data: {data}")
