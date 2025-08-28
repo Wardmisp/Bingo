@@ -65,7 +65,3 @@ def register_player():
     except Exception as e:
         logging.error(f"Error during player registration: {e}")
         return jsonify({"error": "An internal server error occurred."}), 500
-
-if __name__ == '__main__':
-    # In order to access it from everywhere
-    app.run(host='0.0.0.0', port=5000)
