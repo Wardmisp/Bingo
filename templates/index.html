@@ -2,9 +2,10 @@
 <html lang="en">
 
 <head>
+       
     <meta charset="UTF-8">
-    <title>Bingo Game</title>
-    <style>
+        <title>Bingo Game</title>
+        <style>
         body {
             font-family: sans-serif;
             display: flex;
@@ -60,25 +61,35 @@
 
 <body>
 
-    <h1>Players & Bingo Cards</h1>
-    <div id="players-container">
-    </div>
+        <h1>Players & Bingo Cards</h1>
+        <div id="players-container">
+            </div>
 
+       
     <script>
         // Function to fetch and display the players and their bingo cards
         function fetchPlayers() {
+            console.log("Fetching players data from /players endpoint..."); // Log the start of the fetch
             fetch('/players')
-                .then(response => response.json())
+                .then(response => {
+                    console.log("Received response from server:", response.status, response.statusText); // Log the response status
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    return response.json();
+                })
                 .then(players => {
+                    console.log("Successfully parsed player data:", players); // Log the parsed data
                     const container = document.getElementById('players-container');
                     container.innerHTML = ''; // Clear existing player cards
 
-                    if (players.length === 0) {
+                    if (!Array.isArray(players) || players.length === 0) {
                         container.innerHTML = '<p>No players registered yet. Use the Android app to add some!</p>';
                         return;
                     }
 
                     players.forEach(player => {
+                        console.log("Processing player:", player.name); // Log each player
                         const cardDiv = document.createElement('div');
                         cardDiv.className = 'player-card';
 
