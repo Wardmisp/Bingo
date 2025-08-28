@@ -1,47 +1,44 @@
 from flask import Flask, jsonify, request, render_template
+import db_manager
 
 app = Flask(__name__)
 
-# A list to store messages received from the app
-messages = []
-
+# This route serves the HTML page to the browser.
 @app.route('/')
 def serve_page():
-    # You must have an 'index.html' file in a 'templates' folder
     return render_template('index.html')
 
-# This route provides the JSON data to the JavaScript code
-@app.route('/api/data')
-def get_data():
-    return jsonify({
-        "message": "Hello from the Python backend!",
-        "messages_received": messages
-    })
-    
-# Your new route to receive messages via POST
-@app.route('/submit', methods=['POST'])
-def submit_data():
+# This endpoint is for your Android app to register a new player.
+@app.route('/players/register', methods=['POST'])
+def register_player():
     data = request.get_json()
+    if not data or 'player_name' not in data:
+        return jsonify({"error": "Player name not provided"}), 400
     
-    if not data or 'message' not in data:
-        return jsonify({"error": "Invalid data provided"}), 400
+    player_name = data['player_name']
     
-    received_message = data['message']
-    
-    # Add the new message to the list
-    messages.append(received_message)
-    
-    # Print it to the console for your logs
-    print(f"Received message from app: {received_message}")
-    
-    # Send back a confirmation response
-    response = {
-        "status": "success",
-        "message": "Message received and added to list."
-    }
-    return jsonify(response)
+    if db_manager.add_new_player(player_name):
+        return jsonify({
+            "status": "success",
+            "message": f"Player '{player_name}' registered successfully!"
+        })
+    else:
+        return jsonify({"error": f"Player '{player_name}' already exists"}), 409
+
+# This endpoint is for your webpage to get all players and their cards.
+@app.route('/players')
+def get_players():
+    players = db_manager.get_all_players()
+    return jsonify(players)
+
+# A special endpoint to clear the database for a new game.
+@app.route('/game/reset', methods=['POST'])
+def reset_game():
+    db_manager.clear_all_players()
+    return jsonify({"status": "success", "message": "All players cleared for a new game."})
 
 if __name__ == '__main__':
-    # Use a hardcoded port for local development
-    # Gunicorn will handle the port in production on Render
+    # Initialize the file on app start if it doesn't exist
+    if not os.path.exists(db_manager.DATABASE_FILE):
+        db_manager.write_data([])
     app.run(port=3000)
