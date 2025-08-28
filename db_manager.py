@@ -28,14 +28,14 @@ def add_new_player(player_name):
     Returns True on success, False if the player already exists.
     """
     players_data = read_data()
-    # Check if the player already exists
-    if any(p['player_name'] == player_name for p in players_data):
+    # Check if the player already exists using the 'name' key
+    if any(p.get('name') == player_name for p in players_data):
         print(f"Error: Player '{player_name}' already exists.")
         return False
     
     bingo_card = generate_bingo_card()
     new_player = {
-        "player_name": player_name,
+        "name": player_name,  # 🎯 Changed 'player_name' to 'name'
         "bingo_card": bingo_card
     }
     players_data.append(new_player)
