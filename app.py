@@ -1,19 +1,26 @@
+import os
 from flask import Flask, request, jsonify, render_template
 import logging
-# Import your db_manager script
-import db_manager
+from pymongo import MongoClient
+from bingo_card_generator import generate_bingo_card
+
+
+# Load the environment variable from Render
+mongo_uri = os.getenv("MONGO_URI")
 
 app = Flask(__name__)
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-# Remove the in-memory database, as we are now using the db_manager
-# players_db = [
-#     {"id": 1, "name": "Alice"},
-#     {"id": 2, "name": "Bob"},
-#     {"id": 3, "name": "Charlie"}
-# ]
+# Connect to MongoDB Atlas
+try:
+    client = MongoClient(mongo_uri)
+    db = client.bingo_game
+    players_collection = db.players
+    logging.info("Successfully connected to MongoDB Atlas!")
+except Exception as e:
+    logging.error(f"Error connecting to MongoDB Atlas: {e}")
 
 @app.route('/')
 def serve_page():
@@ -26,14 +33,12 @@ def serve_page():
 @app.route('/players', methods=['GET'])
 def get_players():
     """
-    Returns a list of all registered players as JSON.
+    Returns a list of all registered players as JSON from MongoDB.
     """
     logging.info("GET request received for /players endpoint.")
     
-    # Use the db_manager to get all players
-    players_data = db_manager.get_all_players()
+    players_data = list(players_collection.find({}, {"_id": 0}))
     
-    # Log the data being sent
     logging.info(f"Sending player data: {players_data}")
     
     return jsonify(players_data)
@@ -41,28 +46,35 @@ def get_players():
 @app.route('/register-player', methods=['POST'])
 def register_player():
     """
-    Registers a new player and generates a bingo card.
+    Registers a new player and generates a bingo card in MongoDB.
     """
     try:
         data = request.get_json()
         player_name = data.get('name')
         
-        # Log the received request data
         logging.info(f"POST request received for /register-player. Data: {data}")
         
         if not player_name:
             logging.warning("Player name not provided in POST request.")
             return jsonify({"error": "Player name is required."}), 400
 
-        # Use the db_manager function to add the new player with a bingo card
-        success = db_manager.add_new_player(player_name)
+        existing_player = players_collection.find_one({"name": player_name})
         
-        if success:
-            logging.info(f"Successfully registered new player: {player_name}")
-            return jsonify({"message": f"Player '{player_name}' registered successfully."}), 201
-        else:
+        if existing_player:
             logging.warning(f"Attempt to register existing player: {player_name}")
             return jsonify({"error": f"Player '{player_name}' already exists."}), 409
+
+        bingo_card = generate_bingo_card()
+
+        new_player = {
+            "name": player_name,
+            "bingo_card": bingo_card
+        }
+        
+        players_collection.insert_one(new_player)
+        
+        logging.info(f"Successfully registered new player: {new_player}")
+        return jsonify({"message": f"Player '{player_name}' registered successfully."}), 201
 
     except Exception as e:
         logging.error(f"Error during player registration: {e}")
