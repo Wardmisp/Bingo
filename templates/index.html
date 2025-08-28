@@ -1,39 +1,116 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
+
 <head>
-    <title>Live Data</title>
-</head>
-<body>
-
-    <h1>Messages from the App</h1>
-    <ul id="messages-list">
-        </ul>
-
-    <script>
-        // Function to fetch and display the data
-        function fetchData() {
-            fetch('/api/data')
-                .then(response => response.json())
-                .then(data => {
-                    const messagesList = document.getElementById('messages-list');
-                    messagesList.innerHTML = ''; // Clear the current list
-                    
-                    // Loop through the messages and add them to the list
-                    data.messages_received.forEach(message => {
-                        const listItem = document.createElement('li');
-                        listItem.textContent = message;
-                        messagesList.appendChild(listItem);
-                    });
-                })
-                .catch(error => console.error('Error fetching data:', error));
+    <meta charset="UTF-8">
+    <title>Bingo Game</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background-color: #f0f2f5;
+            color: #333;
         }
 
-        // Call the function once to load initial data
-        fetchData();
+        h1 {
+            color: #007bff;
+        }
 
-        // Call the function every 3 seconds to auto-refresh the data
-        setInterval(fetchData, 3000); // 3000 milliseconds = 3 seconds
+        #players-container {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 20px;
+            padding: 20px;
+        }
+
+        .player-card {
+            background-color: #fff;
+            border: 2px solid #ccc;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            width: 250px;
+            text-align: center;
+        }
+
+        .bingo-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 5px;
+            margin-top: 15px;
+        }
+
+        .cell {
+            width: 70px;
+            height: 70px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-color: #e9ecef;
+            border: 1px solid #aaa;
+            border-radius: 8px;
+            font-size: 24px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h1>Players & Bingo Cards</h1>
+    <div id="players-container">
+    </div>
+
+    <script>
+        // Function to fetch and display the players and their bingo cards
+        function fetchPlayers() {
+            fetch('/players')
+                .then(response => response.json())
+                .then(players => {
+                    const container = document.getElementById('players-container');
+                    container.innerHTML = ''; // Clear existing player cards
+
+                    if (players.length === 0) {
+                        container.innerHTML = '<p>No players registered yet. Use the Android app to add some!</p>';
+                        return;
+                    }
+
+                    players.forEach(player => {
+                        const cardDiv = document.createElement('div');
+                        cardDiv.className = 'player-card';
+
+                        const nameHeader = document.createElement('h2');
+                        nameHeader.textContent = player.player_name;
+                        cardDiv.appendChild(nameHeader);
+
+                        const gridDiv = document.createElement('div');
+                        gridDiv.className = 'bingo-grid';
+
+                        // Loop through the 3x3 grid of numbers from the JSON data
+                        player.bingo_card.forEach(row => {
+                            row.forEach(number => {
+                                const cell = document.createElement('div');
+                                cell.className = 'cell';
+                                cell.textContent = number;
+                                gridDiv.appendChild(cell);
+                            });
+                        });
+
+                        cardDiv.appendChild(gridDiv);
+                        container.appendChild(cardDiv);
+                    });
+                })
+                .catch(error => console.error('Error fetching players:', error));
+        }
+
+        // Fetch players on page load and every 3 seconds
+        fetchPlayers();
+        setInterval(fetchPlayers, 3000); // Poll every 3 seconds to get updates
     </script>
 
 </body>
+
 </html>
