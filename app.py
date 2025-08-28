@@ -63,4 +63,4 @@ def register_player():
         return jsonify({"error": "An internal server error occurred."}), 500
 
 if __name__ == '__main__':
-    app.run(port=5000)
+    app.run(port=3000)
