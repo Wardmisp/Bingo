@@ -1,90 +1,206 @@
-package com.example.myapplication.ui.composable
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.myapplication.DataViewModel
+import com.example.myapplication.R
 import com.example.myapplication.ui.theme.MyApplicationTheme
+import com.example.myapplication.ui.utils.UiState
 
 @Composable
-fun JoinGameScreen(onJoinGame: (String) -> Unit, modifier: Modifier) {
+fun JoinGameScreen(
+    modifier: Modifier = Modifier,
+    viewModel: DataViewModel = viewModel()
+) {
+    val uiState by viewModel.uiState.collectAsState()
+    var playerName by remember { mutableStateOf("") }
     var gameId by remember { mutableStateOf("") }
-    var isError by remember { mutableStateOf(false) }
+    val isGameIdValid = gameId.isNotBlank() && gameId.all { it.isDigit() }
+    val isPlayerNameValid = playerName.isNotBlank()
 
     Column(
-        modifier = Modifier
-            .fillMaxSize()
+        modifier = modifier
+            .fillMaxHeight()
+            .fillMaxWidth()
             .padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        Text(
-            text = "Join a Bingo Game",
-            style = MaterialTheme.typography.headlineLarge,
-            color = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.padding(bottom = 24.dp)
-        )
+        // Main content area that changes based on the UI state
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            when (uiState) {
+                is UiState.Loading -> {
+                    // Show a loading indicator while the data is being fetched
+                    CircularProgressIndicator(modifier = Modifier.padding(16.dp))
+                }
 
-        OutlinedTextField(
-            value = gameId,
-            onValueChange = {
-                gameId = it
-                isError = it.isNotBlank() && it.toIntOrNull() == null
-            },
-            label = { Text("Enter Game ID") },
-            modifier = Modifier.fillMaxWidth(),
-            singleLine = true,
-            isError = isError,
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = MaterialTheme.colorScheme.primary,
-                unfocusedBorderColor = Color.Gray
-            )
-        )
+                is UiState.Success -> {
+                    // Cast the state to UiState.Success to access the players list
+                    val players = (uiState as UiState.Success).players
+
+                    // "Board" for player names
+                    LazyColumn(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(max = 400.dp)
+                            .padding(8.dp)
+                    ) {
+                        if (players.isNotEmpty()) {
+                            items(players) { player ->
+                                Card(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 4.dp),
+                                ) {
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(16.dp),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text(
+                                            text = player.name ?: "",
+                                            fontSize = 18.sp,
+                                        )
+                                        IconButton(
+                                            onClick = { viewModel.removePlayer(player) }
+                                        ) {
+                                            Icon(
+                                                painter = painterResource(R.drawable.baseline_clear_24),
+                                                contentDescription = "Remove Player",
+                                                tint = MaterialTheme.colorScheme.error
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        } else {
+                            item {
+                                // Show a message when the list is empty
+                                Text(text = "No players found. Add one!")
+                            }
+                        }
+                    }
+                }
+
+                is UiState.Error -> {
+                    // Show an error message if the API call failed
+                    val errorMessage = (uiState as UiState.Error).message
+                    Text(
+                        text = "Error: $errorMessage",
+                        color = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.padding(16.dp)
+                    )
+                }
+
+                else -> {
+                    Text(
+                        text = "Type a lobby ID and your name to enter!",
+                        style = MaterialTheme.typography.headlineSmall,
+                        modifier = Modifier.padding(16.dp),
+                        textAlign = TextAlign.Center
+                    )
+                }
+            }
+        }
+
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        Button(
-            onClick = { onJoinGame(gameId) },
+        // Game finding UI - these are always visible at the bottom
+        Row(
             modifier = Modifier.fillMaxWidth(),
-            enabled = gameId.isNotBlank(),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = MaterialTheme.colorScheme.primary
-            )
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Text("Join Game")
+            OutlinedTextField(
+                value = gameId,
+                onValueChange = { gameId = it },
+                label = { Text("Enter game ID") },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                isError = !isGameIdValid && gameId.isNotBlank(),
+                supportingText = {
+                    if (!isGameIdValid && gameId.isNotBlank()) {
+                        Text("Game ID must be a number")
+                    }
+                },
+                singleLine = true
+            )
+        }
+        Spacer(modifier = Modifier.height(16.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            OutlinedTextField(
+                value = playerName,
+                onValueChange = { playerName = it },
+                label = { Text("Enter your name") },
+                isError = playerName.isBlank() && gameId.isNotBlank(),
+                supportingText = {
+                    if (playerName.isBlank() && gameId.isNotBlank()) {
+                        Text("Name cannot be empty")
+                    }
+                },
+                modifier = Modifier.weight(1f)
+            )
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // "Start game" button
+        Button(
+            onClick = { /* TODO: Implement game start logic */ },
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(50.dp),
+            enabled = isPlayerNameValid && isGameIdValid
+        ) {
+            Text("Join game")
         }
     }
 }
 
 @Preview(showBackground = true)
 @Composable
-fun LobbyScreenPreview() {
+fun JoinGameScreenPreview() {
     MyApplicationTheme {
-        JoinGameScreen(
-            onJoinGame = {},
-            modifier = Modifier
-        )
+        JoinGameScreen()
     }
 }

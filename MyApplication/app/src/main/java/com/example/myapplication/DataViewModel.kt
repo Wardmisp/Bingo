@@ -8,63 +8,78 @@ import com.example.myapplication.player.Player
 import com.example.myapplication.ui.utils.UiState
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 class DataViewModel(private val repository: PlayersRepository) : ViewModel() {
 
-    // Internal mutable StateFlow
-    private val _uiState = MutableStateFlow<UiState>(UiState.Loading)
-    // Public immutable StateFlow for the UI to observe
-    val uiState: StateFlow<UiState> = _uiState.asStateFlow()
+    private val _uiState = MutableStateFlow<UiState>(UiState.Initial)
+    val uiState: StateFlow<UiState> = _uiState
 
-    init {
-        fetchPlayers()
+    private val _gameId = MutableStateFlow<String?>(null)
+    val gameId: StateFlow<String?> = _gameId
+
+    private var currentLobbyId: String? = null
+
+    /**
+     * Creates a new game lobby and registers the first player.
+     * @param playerName The name of the player to register as the host.
+     */
+    fun setGame(playerName: String) {
+        viewModelScope.launch {
+            _uiState.value = UiState.Loading
+            val registrationResult = repository.registerPlayer(playerName)
+
+            if (registrationResult is ApiResult.Success) {
+                // Set the game ID from the successful registration
+                val newGameId = registrationResult.data.gameId
+                _gameId.value = newGameId
+                currentLobbyId = newGameId
+                // Now fetch the players for the newly created lobby
+                fetchPlayers(newGameId)
+            } else if (registrationResult is ApiResult.Error) {
+                _uiState.value = UiState.Error(registrationResult.message)
+            }
+        }
     }
 
-    // Function to fetch all players from the repository
-    fun fetchPlayers() {
+    fun joinGame(playerName: String, gameId: String) {
         viewModelScope.launch {
-            // Set the state to Loading before the network call
             _uiState.value = UiState.Loading
 
-            val result = repository.fetchPlayers() // Assuming a getPlayers() function in your repository
-
-            when (result) {
+            when (val registerResult = repository.registerPlayer(playerName, gameId)) {
                 is ApiResult.Success -> {
-                    // Update the state to Success with the list of players
+                    // After successful registration, fetch the players for the specific game
+                    fetchPlayers(gameId)
+                }
+                is ApiResult.Error -> {
+                    _uiState.value = UiState.Error(registerResult.message)
+                }
+                is ApiResult.Loading -> {
+                    _uiState.value = UiState.Loading
+                }
+            }
+        }
+    }
+
+    private fun fetchPlayers(gameId: String) {
+        viewModelScope.launch {
+            _uiState.value = UiState.Loading
+
+            when (val result = repository.fetchPlayers(gameId)) {
+                is ApiResult.Success -> {
                     _uiState.value = UiState.Success(result.data)
                 }
                 is ApiResult.Error -> {
-                    // Update the state to Error with the error message
                     _uiState.value = UiState.Error(result.message)
                 }
-
-                ApiResult.Loading -> {
-                // Update the state to Loading
-                _uiState.value = UiState.Loading
-            }
-            }
-        }
-    }
-
-    // Function to add a player (triggers the network call)
-    fun addPlayer(playerName: String) {
-        viewModelScope.launch {
-            if (playerName.isNotBlank()) {
-                val result = repository.registerPlayer(playerName)
-                if (result is ApiResult.Success) {
-                    // Refresh the UI by fetching the players again
-                    fetchPlayers()
-                } else if (result is ApiResult.Error) {
-                    _uiState.value = UiState.Error(result.message)
+                is ApiResult.Loading -> {
+                    _uiState.value = UiState.Loading
                 }
             }
         }
     }
 
-    /*TODO implement*/
     fun removePlayer(player: Player) {
-        // You would implement a network call to the server to remove the player
+        // Implementation for removing a player
     }
 }

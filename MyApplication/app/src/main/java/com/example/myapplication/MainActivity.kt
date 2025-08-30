@@ -1,5 +1,6 @@
 package com.example.myapplication
 
+import JoinGameScreen
 import PlayersRepository
 import SetGameScreen
 import android.os.Bundle
@@ -26,7 +27,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.myapplication.network.RetrofitInstance
-import com.example.myapplication.ui.composable.JoinGameScreen
 import com.example.myapplication.ui.theme.MyApplicationTheme
 
 sealed class Screen {
@@ -82,10 +82,7 @@ fun MainScreen() {
             )
             is Screen.JoinGame -> JoinGameScreen(
                 modifier = Modifier.padding(innerPadding),
-                onJoinGame = { gameId ->
-                    // Handle game joining logic here
-                    // e.g., navigate to a new screen or show a loading indicator
-                }
+                viewModel = viewModel
             )
         }
     }

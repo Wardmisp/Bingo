@@ -6,4 +6,5 @@ sealed class UiState {
     object Loading : UiState()
     data class Success(val players: List<Player>) : UiState()
     data class Error(val message: String) : UiState()
+    object Initial : UiState()
 }

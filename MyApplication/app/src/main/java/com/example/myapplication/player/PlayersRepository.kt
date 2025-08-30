@@ -3,54 +3,66 @@
 import com.example.myapplication.network.ApiResult
 import com.example.myapplication.network.ApiService
 import com.example.myapplication.player.Player
-import com.example.myapplication.player.PlayerRegistration
 import com.example.myapplication.player.RegistrationResponse
-import retrofit2.HttpException
+import retrofit2.Response
+import java.io.IOException
 
 class PlayersRepository(private val apiService: ApiService) {
 
-    suspend fun fetchPlayers(): ApiResult<List<Player>> {
+    suspend fun fetchPlayers(gameId: String): ApiResult<List<Player>> {
         return try {
-            val response = apiService.getPlayers()
+            val players = apiService.getPlayers(gameId)
+            ApiResult.Success(players)
+        } catch (e: IOException) {
+            ApiResult.Error("Network error: ${e.message}")
+        } catch (e: Exception) {
+            ApiResult.Error("An unexpected error occurred: ${e.message}")
+        }
+    }
+
+    suspend fun registerPlayer(playerName: String, gameId: String): ApiResult<Boolean> {
+        return try {
+            val response: Response<RegistrationResponse> = apiService.registerPlayer(mapOf("playerName" to playerName, "gameId" to gameId))
             if (response.isSuccessful) {
-                val players = response.body()
-                if (players != null) {
-                    ApiResult.Success(players)
+                // Return the player ID upon successful registration
+                val playerId = response.body()?.playerId
+                if (playerId != null) {
+                    ApiResult.Success(true)
                 } else {
-                    ApiResult.Error("Response body is empty.")
+                    ApiResult.Error("Response body is empty or missing player ID.")
                 }
             } else {
                 ApiResult.Error("API Error: ${response.code()} - ${response.message()}")
             }
+        } catch (e: IOException) {
+            ApiResult.Error("Network error: ${e.message}")
         } catch (e: Exception) {
-            ApiResult.Error("Network Error: ${e.message}")
+            ApiResult.Error("An unexpected error occurred: ${e.message}")
         }
     }
 
-    /**
-     * Registers a new player with the server.
-     * @param playerName The name of the player to register.
-     * @return An ApiResult indicating success or failure of the registration.
-     */
     suspend fun registerPlayer(playerName: String): ApiResult<RegistrationResponse> {
         return try {
-            val response = apiService.registerPlayer(PlayerRegistration(playerName))
+            val response = apiService.registerPlayer(mapOf("playerName" to playerName))
             if (response.isSuccessful) {
-                response.body()?.let { ApiResult.Success(it) }
-                    ?: ApiResult.Error("Response body is empty.")
-            } else {
-                // Handle specific HTTP errors like a 409 Conflict if the player already exists.
-                val errorMessage = when (response.code()) {
-                    409 -> "Player '${playerName}' already exists."
-                    else -> "API Error: ${response.code()} - ${response.message()}"
+                val registrationResponse = response.body()
+                if (registrationResponse != null) {
+                    ApiResult.Success(registrationResponse)
+                } else {
+                    ApiResult.Error("Response body is empty or missing registration data.")
                 }
-                ApiResult.Error(errorMessage)
+            } else {
+                ApiResult.Error("API Error: ${response.code()} - ${response.message()}")
             }
-        } catch (e: HttpException) {
-            // Handle HttpException to catch non-2xx codes and get more info.
-            ApiResult.Error("HTTP Error: ${e.code()} - ${e.message()}")
+        } catch (e: IOException) {
+            ApiResult.Error("Network error: ${e.message}")
         } catch (e: Exception) {
-            ApiResult.Error("Network Error: ${e.message}")
+            ApiResult.Error("An unexpected error occurred: ${e.message}")
         }
+    }
+
+    fun removePlayer(player: Player): ApiResult<Boolean> {
+        // Implementation for removing a player
+        return ApiResult.Success(true)
     }
 }

@@ -40,7 +40,6 @@ fun SetGameScreen(
     modifier: Modifier = Modifier,
     viewModel: DataViewModel = viewModel()
 ) {
-    // 🎯 The corrected line: Collect from the 'uiState' property
     val uiState by viewModel.uiState.collectAsState()
     var playerName by remember { mutableStateOf("") }
 
@@ -118,6 +117,14 @@ fun SetGameScreen(
                     modifier = Modifier.padding(16.dp)
                 )
             }
+            is UiState.Initial -> {
+                // Show an error message if the API call failed
+                Text(
+                    text = "Welcome to the bingo!",
+                    color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.padding(16.dp)
+                )
+            }
         }
 
         Spacer(modifier = Modifier.height(16.dp))
@@ -135,7 +142,7 @@ fun SetGameScreen(
             )
             IconButton(
                 onClick = {
-                    viewModel.addPlayer(playerName)
+                    viewModel.setGame(playerName)
                     playerName = ""
                 },
             ) {
