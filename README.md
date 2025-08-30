@@ -13,7 +13,7 @@ A real-time mobile bingo game built with Kotlin and Jetpack Compose for the Andr
 
 - **Android**: Kotlin, Jetpack Compose, Coroutines, ViewModel, Retrofit, and OkHttp.
 - **Backend**: Python, Flask, Gunicorn (for production).
-- **Database**: JSON file (`bingo_data.json`) for simple, file-based persistence.
+- **Database**: MongoDB Atlas (NOSQL) 
 - **Hosting**: Render (for the public web service).
 
 ## 🚀 Getting Started
