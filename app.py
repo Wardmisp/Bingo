@@ -48,16 +48,17 @@ def serve_page():
     logging.info("GET request received for / endpoint. Serving index.html.")
     return render_template('index.html')
 
-@app.route('/players', methods=['GET'])
-def get_players():
+@app.route('/players/<gameId>', methods=['GET'])
+def get_players(gameId):
     """
-    Returns a list of all registered players as JSON from MongoDB.
+    Returns a list of all players in a specific game as JSON from MongoDB.
     """
-    logging.info("GET request received for /players endpoint.")
+    logging.info(f"GET request received for /players/{gameId} endpoint.")
     
-    players_data = list(players_collection.find({}, {"_id": 0}))
+    # Correctly filter players by gameId
+    players_data = list(players_collection.find({"gameId": gameId}, {"_id": 0}))
     
-    logging.info(f"Sending player data: {players_data}")
+    logging.info(f"Sending player data for game {gameId}: {players_data}")
     
     return jsonify(players_data)
 
