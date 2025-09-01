@@ -1,11 +1,27 @@
 import os
+from random import random
 import uuid
 from flask import Flask, request, jsonify, render_template
 import logging
 from pymongo import MongoClient
 from bingo_card_generator import generate_bingo_card
-from utils import generate_unique_numeric_id, is_game_id_unique
 
+# Some utils
+def is_game_id_unique(game_id):
+    """Checks if a game ID already exists in the players collection."""
+    if players_collection is None:
+        return False
+    return players_collection.find_one({"gameId": game_id}) is None
+
+def generate_unique_numeric_id():
+    """Generates a unique 6-digit numeric ID."""
+    if players_collection is None:
+        return None
+    while True:
+        # Generates a random 6-digit number
+        new_id = str(random.randint(100000, 999999))
+        if is_game_id_unique(new_id):
+            return new_id
 
 # Load the environment variable from Render
 mongo_uri = os.getenv("MONGO_URI")
