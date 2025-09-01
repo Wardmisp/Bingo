@@ -1,5 +1,5 @@
 import os
-from random import random
+from random import randint
 import uuid
 from flask import Flask, request, jsonify, render_template
 import logging
@@ -19,7 +19,7 @@ def generate_unique_numeric_id():
         return None
     while True:
         # Generates a random 6-digit number
-        new_id = str(random.randint(100000, 999999))
+        new_id = str(randint(100000, 999999))
         if is_game_id_unique(new_id):
             return new_id
 
