@@ -76,6 +76,9 @@
     <script>
         document.getElementById('fetchButton').addEventListener('click', fetchPlayers);
 
+        /**
+         * Fetches and displays players and their bingo cards for a given game ID.
+         */
         function fetchPlayers() {
             const gameId = document.getElementById('gameIdInput').value.trim();
             const container = document.getElementById('players-container');
@@ -110,6 +113,7 @@
 
                     players.forEach(player => {
                         const cardDiv = document.createElement('div');
+                        // Apply the player-card styling
                         cardDiv.className = 'player-card';
 
                         const nameHeader = document.createElement('h2');
@@ -123,6 +127,7 @@
                         cardDiv.appendChild(gameIdText);
 
                         const gridDiv = document.createElement('div');
+                        // Apply the bingo-grid styling
                         gridDiv.className = 'bingo-grid';
 
                         // Assuming bingo_card is a flat array, convert it to a 5x5 grid
@@ -130,6 +135,7 @@
                         for (let i = 0; i < 25; i++) {
                             const number = bingoCard[i];
                             const cell = document.createElement('div');
+                            // Apply the cell styling
                             cell.className = 'cell';
 
                             if (number !== null) {
