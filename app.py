@@ -104,3 +104,50 @@ def register_player():
     except Exception as e:
         logging.error(f"Error during player registration: {e}")
         return jsonify({"error": "An internal server error occurred."}), 500
+    
+@app.route('/join-game', methods=['POST'])
+def join_game():
+    """
+    Adds a new player to an existing game lobby.
+    """
+    try:
+        data = request.get_json()
+        player_name = data.get('name')
+        game_id = data.get('gameId')
+        
+        logging.info(f"POST request received for /join-game. Data: {data}")
+        
+        if not player_name or not game_id:
+            logging.warning("Player name or game ID not provided.")
+            return jsonify({"error": "Player name and game ID are required."}), 400
+
+        # Check if the game ID exists
+        if f'players_in_game_{game_id}' not in db.list_collection_names():
+            logging.warning(f"Attempt to join non-existent game: {game_id}")
+            return jsonify({"error": "Game not found. Please check the ID."}), 404
+
+        # Get the collection for the existing game
+        players_collection = db[f'players_in_game_{game_id}']
+        
+        existing_player = players_collection.find_one({"name": player_name})
+        
+        if existing_player:
+            logging.warning(f"Attempt to register existing player: {player_name} in game {game_id}")
+            return jsonify({"error": f"Player '{player_name}' already exists in this game."}), 409
+
+        # Generate the bingo card
+        bingo_card = generate_bingo_card()
+
+        new_player = {
+            "name": player_name,
+            "bingo_card": bingo_card
+        }
+        
+        players_collection.insert_one(new_player)
+        
+        logging.info(f"Successfully joined game {game_id} with new player: {player_name}")
+        return jsonify({"message": f"Player '{player_name}' registered successfully in game {game_id}."}), 201
+
+    except Exception as e:
+        logging.error(f"Error during player join: {e}")
+        return jsonify({"error": "An internal server error occurred."}), 500
