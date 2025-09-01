@@ -1,8 +1,10 @@
 import os
+import uuid
 from flask import Flask, request, jsonify, render_template
 import logging
 from pymongo import MongoClient
 from bingo_card_generator import generate_bingo_card
+from utils import generate_unique_numeric_id, is_game_id_unique
 
 
 # Load the environment variable from Render
@@ -46,35 +48,41 @@ def get_players():
 @app.route('/register-player', methods=['POST'])
 def register_player():
     """
-    Registers a new player and generates a bingo card in MongoDB.
+    Registers a new player and creates a unique numeric game ID.
     """
+    if players_collection is None:
+        return jsonify({"error": "Database connection not available."}), 500
+
     try:
         data = request.get_json()
         player_name = data.get('name')
-        
+
         logging.info(f"POST request received for /register-player. Data: {data}")
-        
+
         if not player_name:
             logging.warning("Player name not provided in POST request.")
             return jsonify({"error": "Player name is required."}), 400
 
-        existing_player = players_collection.find_one({"name": player_name})
+        # Generate a unique numeric game ID
+        new_game_id = generate_unique_numeric_id(players_collection)
+        if new_game_id is None:
+            return jsonify({"error": "Could not generate a unique game ID."}), 500
         
-        if existing_player:
-            logging.warning(f"Attempt to register existing player: {player_name}")
-            return jsonify({"error": f"Player '{player_name}' already exists."}), 409
-
         bingo_card = generate_bingo_card()
-
         new_player = {
             "name": player_name,
+            "gameId": new_game_id,
             "bingo_card": bingo_card
         }
-        
         players_collection.insert_one(new_player)
+        logging.info(f"Successfully registered new player and created game: {new_player}")
         
-        logging.info(f"Successfully registered new player: {new_player}")
-        return jsonify({"message": f"Player '{player_name}' registered successfully."}), 201
+        # Return the new gameId so the host can share it with others
+        return jsonify({
+            "message": f"Player '{player_name}' registered successfully and joined game '{new_game_id}'.",
+            "playerId": str(new_player.get('_id')),
+            "gameId": new_game_id
+        }), 201
 
     except Exception as e:
         logging.error(f"Error during player registration: {e}")
