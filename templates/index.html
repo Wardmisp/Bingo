@@ -159,21 +159,20 @@
                         // Apply the bingo-grid styling
                         gridDiv.className = 'bingo-grid';
 
-                        // Assuming bingo_card is a flat array, convert it to a 5x5 grid
-                        const bingoCard = player.bingo_card;
-                        for (let i = 0; i < 25; i++) {
-                            const number = bingoCard[i];
-                            const cell = document.createElement('div');
-                            // Apply the cell styling
-                            cell.className = 'cell';
+                        // Iterate through the 2D array to display each number
+                        player.bingo_card.forEach(row => {
+                            row.forEach(number => {
+                                const cell = document.createElement('div');
+                                cell.className = 'cell';
 
-                            if (number !== null) {
-                                cell.textContent = number;
-                            } else {
-                                cell.classList.add('blank-cell');
-                            }
-                            gridDiv.appendChild(cell);
-                        }
+                                if (number !== null) {
+                                    cell.textContent = number;
+                                } else {
+                                    cell.classList.add('blank-cell');
+                                }
+                                gridDiv.appendChild(cell);
+                            });
+                        });
 
                         cardDiv.appendChild(gridDiv);
                         container.appendChild(cardDiv);
