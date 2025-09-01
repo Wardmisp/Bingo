@@ -80,7 +80,7 @@ def register_player():
             return jsonify({"error": "Player name is required."}), 400
 
         # Generate a unique numeric game ID
-        new_game_id = generate_unique_numeric_id(players_collection)
+        new_game_id = generate_unique_numeric_id()
         if new_game_id is None:
             return jsonify({"error": "Could not generate a unique game ID."}), 500
         
