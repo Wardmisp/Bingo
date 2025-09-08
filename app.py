@@ -1,9 +1,27 @@
 import os
+from random import randint
+import uuid
 from flask import Flask, request, jsonify, render_template
 import logging
 from pymongo import MongoClient
 from bingo_card_generator import generate_bingo_card
-import random
+
+# Some utils
+def is_game_id_unique(game_id):
+    """Checks if a game ID already exists in the players collection."""
+    if players_collection is None:
+        return False
+    return players_collection.find_one({"gameId": game_id}) is None
+
+def generate_unique_numeric_id():
+    """Generates a unique 6-digit numeric ID."""
+    if players_collection is None:
+        return None
+    while True:
+        # Generates a random 6-digit number
+        new_id = str(randint(100000, 999999))
+        if is_game_id_unique(new_id):
+            return new_id
 
 # Load the environment variable from Render
 mongo_uri = os.getenv("MONGO_URI")
@@ -17,9 +35,8 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 try:
     client = MongoClient(mongo_uri)
     db = client.bingo_game
-    # Use a single, static collection for all players
     players_collection = db.players
-    logging.info("Successfully connected to MongoDB Atlas and using 'players' collection.")
+    logging.info("Successfully connected to MongoDB Atlas!")
 except Exception as e:
     logging.error(f"Error connecting to MongoDB Atlas: {e}")
 
@@ -31,60 +48,61 @@ def serve_page():
     logging.info("GET request received for / endpoint. Serving index.html.")
     return render_template('index.html')
 
-@app.route('/players/<game_id>', methods=['GET'])
-def get_players(game_id):
+@app.route('/players/<gameId>', methods=['GET'])
+def get_players(gameId):
     """
-    Returns a list of all registered players for a specific game as JSON from the single collection.
+    Returns a list of all players in a specific game as JSON from MongoDB.
     """
-    logging.info(f"GET request for players in game ID: {game_id}")
+    logging.info(f"GET request received for /players/{gameId} endpoint.")
     
     # Correctly filter players by gameId
-    players_data = list(players_collection.find({"gameId": game_id}, {"_id": 0}))
+    players_data = list(players_collection.find({"gameId": gameId}, {"_id": 0}))
     
-    logging.info(f"Found {len(players_data)} players for game {game_id}.")
+    logging.info(f"Sending player data for game {gameId}: {players_data}")
     
     return jsonify(players_data)
 
-@app.route('/create-game', methods=['POST'])
-def create_game():
+@app.route('/register-player', methods=['POST'])
+def register_player():
     """
-    Registers a new player and creates a new game.
+    Registers a new player and creates a unique numeric game ID.
     """
+    if players_collection is None:
+        return jsonify({"error": "Database connection not available."}), 500
+
     try:
         data = request.get_json()
         player_name = data.get('name')
-        
-        logging.info(f"POST request received for /create-game. Data: {data}")
-        
+
+        logging.info(f"POST request received for /register-player. Data: {data}")
+
         if not player_name:
             logging.warning("Player name not provided in POST request.")
             return jsonify({"error": "Player name is required."}), 400
 
-        # Generate a unique game ID
-        def generate_unique_numeric_id():
-            while True:
-                new_id = str(random.randint(100000, 999999))
-                # Check for uniqueness across the entire players collection
-                if players_collection.count_documents({"gameId": new_id}) == 0:
-                    return new_id
-        
-        game_id = generate_unique_numeric_id()
+        # Generate a unique numeric game ID
+        new_game_id = generate_unique_numeric_id()
+        if new_game_id is None:
+            return jsonify({"error": "Could not generate a unique game ID."}), 500
         
         bingo_card = generate_bingo_card()
-
         new_player = {
             "name": player_name,
-            "gameId": game_id,
+            "gameId": new_game_id,
             "bingo_card": bingo_card
         }
-        
         players_collection.insert_one(new_player)
+        logging.info(f"Successfully registered new player and created game: {new_player}")
         
-        logging.info(f"Successfully created new game with ID {game_id} and registered player: {player_name}")
-        return jsonify({"message": f"Player '{player_name}' registered successfully.", "gameId": game_id}), 201
+        # Return the new gameId so the host can share it with others
+        return jsonify({
+            "message": f"Player '{player_name}' registered successfully and joined game '{new_game_id}'.",
+            "playerId": str(new_player.get('_id')),
+            "gameId": new_game_id
+        }), 201
 
     except Exception as e:
-        logging.error(f"Error during game creation and player registration: {e}")
+        logging.error(f"Error during player registration: {e}")
         return jsonify({"error": "An internal server error occurred."}), 500
 
 @app.route('/join-game', methods=['POST'])
@@ -132,13 +150,3 @@ def join_game():
     except Exception as e:
         logging.error(f"Error during player join: {e}")
         return jsonify({"error": "An internal server error occurred."}), 500
-
-@app.route('/debug/players', methods=['GET'])
-def debug_players():
-    """
-    DEBUG: Returns the entire players collection as JSON and logs it.
-    """
-    logging.info("GET request received for /debug/players.")
-    all_players_data = list(players_collection.find({}, {"_id": 0}))
-    logging.info(f"Returning all player data: {all_players_data}")
-    return jsonify(all_players_data)
