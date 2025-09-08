@@ -104,7 +104,7 @@ def register_player():
     except Exception as e:
         logging.error(f"Error during player registration: {e}")
         return jsonify({"error": "An internal server error occurred."}), 500
-    
+
 @app.route('/join-game', methods=['POST'])
 def join_game():
     """
@@ -121,15 +121,13 @@ def join_game():
             logging.warning("Player name or game ID not provided.")
             return jsonify({"error": "Player name and game ID are required."}), 400
 
-        # Check if the game ID exists
-        if f'players_in_game_{game_id}' not in db.list_collection_names():
+        # Check if the game ID exists by finding at least one player in that game
+        if players_collection.count_documents({"gameId": game_id}) == 0:
             logging.warning(f"Attempt to join non-existent game: {game_id}")
             return jsonify({"error": "Game not found. Please check the ID."}), 404
 
-        # Get the collection for the existing game
-        players_collection = db[f'players_in_game_{game_id}']
-        
-        existing_player = players_collection.find_one({"name": player_name})
+        # Check if the player already exists in this specific game
+        existing_player = players_collection.find_one({"name": player_name, "gameId": game_id})
         
         if existing_player:
             logging.warning(f"Attempt to register existing player: {player_name} in game {game_id}")
@@ -140,6 +138,7 @@ def join_game():
 
         new_player = {
             "name": player_name,
+            "gameId": game_id,
             "bingo_card": bingo_card
         }
         
