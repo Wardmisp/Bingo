@@ -96,7 +96,7 @@ def join_game():
         data = request.get_json()
         player_name = data.get('name')
         game_id = data.get('gameId')
-         
+        
         logging.info(f"POST request received for /join-game. Data: {data}")
         
         if not player_name or not game_id:
@@ -104,7 +104,6 @@ def join_game():
             return jsonify({"error": "Player name and game ID are required."}), 400
 
         # Check if the game ID exists by finding at least one player in that game
-        logging.info(f"players_collection is actually {players_collection}")
         if players_collection.count_documents({"gameId": game_id}) == 0:
             logging.warning(f"Attempt to join non-existent game: {game_id}")
             return jsonify({"error": "Game not found. Please check the ID."}), 404
@@ -133,3 +132,13 @@ def join_game():
     except Exception as e:
         logging.error(f"Error during player join: {e}")
         return jsonify({"error": "An internal server error occurred."}), 500
+
+@app.route('/debug/players', methods=['GET'])
+def debug_players():
+    """
+    DEBUG: Returns the entire players collection as JSON and logs it.
+    """
+    logging.info("GET request received for /debug/players.")
+    all_players_data = list(players_collection.find({}, {"_id": 0}))
+    logging.info(f"Returning all player data: {all_players_data}")
+    return jsonify(all_players_data)
