@@ -4,8 +4,8 @@ import uuid
 from flask import Flask, request, jsonify, render_template
 import logging
 from pymongo import MongoClient
-from bson.objectid import ObjectId
 from bingo_card_generator import generate_bingo_card
+from bson.objectid import ObjectId
 
 # Some utils
 def is_game_id_unique(game_id):
@@ -37,6 +37,7 @@ try:
     client = MongoClient(mongo_uri)
     db = client.bingo_game
     players_collection = db.players
+    bingo_cards_collection = db.bingo_cards  # New collection for bingo cards
     logging.info("Successfully connected to MongoDB Atlas!")
 except Exception as e:
     logging.error(f"Error connecting to MongoDB Atlas: {e}")
@@ -53,20 +54,57 @@ def serve_page():
 def get_players(gameId):
     """
     Returns a list of all players in a specific game as JSON from MongoDB.
+    
+    This endpoint now EXCLUDES the bingo card data to reduce payload size.
     """
     logging.info(f"GET request received for /players/{gameId} endpoint.")
     
-    # Correctly filter players by gameId
-    players_data = list(players_collection.find({"gameId": gameId}, {"_id": 0}))
+    # Correctly filter players by gameId and exclude the bingo_card field
+    players_data = list(players_collection.find({"gameId": gameId}, {"_id": 0, "bingo_card_id": 0}))
     
     logging.info(f"Sending player data for game {gameId}: {players_data}")
     
     return jsonify(players_data)
 
+@app.route('/player-card/<gameId>/<playerId>', methods=['GET'])
+def get_player_card(gameId, playerId):
+    """
+    Returns a specific player's bingo card based on gameId and playerId.
+    """
+    logging.info(f"GET request received for /player-card/{gameId}/{playerId}.")
+    
+    # Find the player document to get the bingo card ID
+    player_doc = players_collection.find_one({"gameId": gameId, "playerId": playerId})
+    
+    if not player_doc:
+        logging.warning(f"Player not found: {playerId} in game {gameId}")
+        return jsonify({"error": "Player not found."}), 404
+
+    bingo_card_id = player_doc.get("bingo_card_id")
+    
+    if not bingo_card_id:
+        logging.warning(f"Bingo card ID not found for player: {playerId}")
+        return jsonify({"error": "Bingo card not associated with player."}), 404
+
+    # Find the bingo card document using the stored ID
+    try:
+        bingo_card_doc = bingo_cards_collection.find_one({"_id": ObjectId(bingo_card_id)}, {"_id": 0})
+    except Exception:
+        logging.warning(f"Invalid ObjectId for bingo card ID: {bingo_card_id}")
+        return jsonify({"error": "Invalid bingo card ID."}), 400
+
+    if not bingo_card_doc:
+        logging.warning(f"Bingo card not found for ID: {bingo_card_id}")
+        return jsonify({"error": "Bingo card not found."}), 404
+    
+    logging.info(f"Sending bingo card for player {playerId}: {bingo_card_doc}")
+    
+    return jsonify(bingo_card_doc)
+
 @app.route('/create-game', methods=['POST'])
 def create_game():
     """
-    Registers a new player and creates a unique numeric game ID.
+    Registers a new player, creates a unique numeric game ID, and generates a bingo card.
     """
     if players_collection is None:
         return jsonify({"error": "Database connection not available."}), 500
@@ -86,26 +124,32 @@ def create_game():
         if new_game_id is None:
             return jsonify({"error": "Could not generate a unique game ID."}), 500
         
+        # Generate and insert the bingo card first
         bingo_card = generate_bingo_card()
+        card_result = bingo_cards_collection.insert_one({"card": bingo_card})
+        bingo_card_id = str(card_result.inserted_id)
+
+        # Then, create the player and link the bingo card
+        new_player_id = str(uuid.uuid4())
         new_player = {
             "name": player_name,
             "gameId": new_game_id,
-            "bingo_card": bingo_card
+            "playerId": new_player_id,
+            "gameStarted": False,
+            "bingo_card_id": bingo_card_id
         }
-        result = players_collection.insert_one(new_player)
-        
+        players_collection.insert_one(new_player)
         logging.info(f"Successfully registered new player and created game: {new_player}")
         
-        # Return the new gameId so the host can share it with others
+        # Return the new gameId and playerId to the host
         return jsonify({
-            "status": "success",
             "message": f"Player '{player_name}' registered successfully and joined game '{new_game_id}'.",
-            "playerId": str(result.inserted_id),
+            "playerId": new_player_id,
             "gameId": new_game_id
         }), 201
 
     except Exception as e:
-        logging.error(f"Error during game creation: {e}")
+        logging.error(f"Error during player registration: {e}")
         return jsonify({"error": "An internal server error occurred."}), 500
 
 @app.route('/join-game', methods=['POST'])
@@ -136,22 +180,26 @@ def join_game():
             logging.warning(f"Attempt to register existing player: {player_name} in game {game_id}")
             return jsonify({"error": f"Player '{player_name}' already exists in this game."}), 409
 
-        # Generate the bingo card
+        # Generate and insert the bingo card first
         bingo_card = generate_bingo_card()
+        card_result = bingo_cards_collection.insert_one({"card": bingo_card})
+        bingo_card_id = str(card_result.inserted_id)
 
+        # Then, create the player and link the bingo card
+        new_player_id = str(uuid.uuid4())
         new_player = {
             "name": player_name,
             "gameId": game_id,
-            "bingo_card": bingo_card
+            "playerId": new_player_id,
+            "gameStarted": False,
+            "bingo_card_id": bingo_card_id
         }
-        result = players_collection.insert_one(new_player)
-        
+        players_collection.insert_one(new_player)
+
         logging.info(f"Successfully joined game {game_id} with new player: {player_name}")
         return jsonify({
-            "status": "success",
             "message": f"Player '{player_name}' registered successfully in game {game_id}.",
-            "playerId": str(result.inserted_id),
-            "gameId": game_id
+            "playerId": new_player_id
         }), 201
 
     except Exception as e:
