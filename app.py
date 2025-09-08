@@ -4,6 +4,7 @@ import uuid
 from flask import Flask, request, jsonify, render_template
 import logging
 from pymongo import MongoClient
+from bson.objectid import ObjectId
 from bingo_card_generator import generate_bingo_card
 
 # Some utils
@@ -62,8 +63,8 @@ def get_players(gameId):
     
     return jsonify(players_data)
 
-@app.route('/register-player', methods=['POST'])
-def register_player():
+@app.route('/create-game', methods=['POST'])
+def create_game():
     """
     Registers a new player and creates a unique numeric game ID.
     """
@@ -74,7 +75,7 @@ def register_player():
         data = request.get_json()
         player_name = data.get('name')
 
-        logging.info(f"POST request received for /register-player. Data: {data}")
+        logging.info(f"POST request received for /create-game. Data: {data}")
 
         if not player_name:
             logging.warning("Player name not provided in POST request.")
@@ -91,18 +92,20 @@ def register_player():
             "gameId": new_game_id,
             "bingo_card": bingo_card
         }
-        players_collection.insert_one(new_player)
+        result = players_collection.insert_one(new_player)
+        
         logging.info(f"Successfully registered new player and created game: {new_player}")
         
         # Return the new gameId so the host can share it with others
         return jsonify({
+            "status": "success",
             "message": f"Player '{player_name}' registered successfully and joined game '{new_game_id}'.",
-            "playerId": str(new_player.get('_id')),
+            "playerId": str(result.inserted_id),
             "gameId": new_game_id
         }), 201
 
     except Exception as e:
-        logging.error(f"Error during player registration: {e}")
+        logging.error(f"Error during game creation: {e}")
         return jsonify({"error": "An internal server error occurred."}), 500
 
 @app.route('/join-game', methods=['POST'])
@@ -141,11 +144,15 @@ def join_game():
             "gameId": game_id,
             "bingo_card": bingo_card
         }
-        
-        players_collection.insert_one(new_player)
+        result = players_collection.insert_one(new_player)
         
         logging.info(f"Successfully joined game {game_id} with new player: {player_name}")
-        return jsonify({"message": f"Player '{player_name}' registered successfully in game {game_id}."}), 201
+        return jsonify({
+            "status": "success",
+            "message": f"Player '{player_name}' registered successfully in game {game_id}.",
+            "playerId": str(result.inserted_id),
+            "gameId": game_id
+        }), 201
 
     except Exception as e:
         logging.error(f"Error during player join: {e}")
