@@ -1,7 +1,6 @@
 package com.example.myapplication
 
-import JoinGameScreen
-import SetGameScreen
+import PlayersRepository
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -16,35 +15,47 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.example.myapplication.data.PlayersRepository
+import com.example.bingoapp.ui.screens.JoinGameScreen
+import com.example.myapplication.bingocards.BingoCardsRepository
 import com.example.myapplication.network.RetrofitInstance
+import com.example.myapplication.ui.composable.BingoCardScreen
+import com.example.myapplication.ui.screens.SetGameScreen
 import com.example.myapplication.ui.theme.MyApplicationTheme
 
 sealed class Screen {
     object SetGame : Screen()
     object JoinGame : Screen()
+    object InGame : Screen()
 }
 
 @Composable
 fun MainScreen() {
-    // State to hold the currently selected screen
     var currentScreen by remember { mutableStateOf<Screen>(Screen.SetGame) }
-
-    // Instantiate ViewModel once and pass to child composables
     val viewModel: DataViewModel = viewModel(
-        factory = DataViewModelFactory(PlayersRepository(apiService = RetrofitInstance.apiService))
+        factory = DataViewModelFactory(
+            PlayersRepository(apiService = RetrofitInstance.apiService),
+            bingoCardsRepository = BingoCardsRepository(apiService = RetrofitInstance.apiService)
+        )
     )
+    val gameStarted by viewModel.gameStarted.collectAsState()
 
-    // Collect the game ID state from the ViewModel
-    val gameId by viewModel.gameId.collectAsState()
+    // Observe game state and navigate to the in-game screen
+    LaunchedEffect(gameStarted) {
+        if (gameStarted) {
+            currentScreen = Screen.InGame
+        }
+    }
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
@@ -53,7 +64,6 @@ fun MainScreen() {
                 containerColor = MaterialTheme.colorScheme.primaryContainer,
                 contentColor = MaterialTheme.colorScheme.primary
             ) {
-                // Button to switch to SetGameScreen
                 IconButton(
                     onClick = { currentScreen = Screen.SetGame },
                     modifier = Modifier.weight(1f)
@@ -64,28 +74,28 @@ fun MainScreen() {
                     )
                 }
 
-                // Button to switch to JoinGameScreen
-                // Disable this button if a game has already been created
                 IconButton(
                     onClick = { currentScreen = Screen.JoinGame },
-                    modifier = Modifier.weight(1f),
-                    enabled = gameId.isNullOrBlank()
+                    modifier = Modifier.weight(1f)
                 ) {
                     Icon(
                         imageVector = Icons.Default.Info,
-                        contentDescription = if (gameId.isNullOrBlank()) "Join Game" else "Game already created"
+                        contentDescription = "Join Game"
                     )
                 }
             }
         }
     ) { innerPadding ->
-        // Display the correct screen based on the state
         when (currentScreen) {
             is Screen.SetGame -> SetGameScreen(
                 modifier = Modifier.padding(innerPadding),
                 viewModel = viewModel
             )
             is Screen.JoinGame -> JoinGameScreen(
+                modifier = Modifier.padding(innerPadding),
+                viewModel = viewModel
+            )
+            is Screen.InGame -> BingoCardScreen(
                 modifier = Modifier.padding(innerPadding),
                 viewModel = viewModel
             )
@@ -96,7 +106,6 @@ fun MainScreen() {
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
         enableEdgeToEdge()
         setContent {
             MyApplicationTheme {
@@ -106,3 +115,10 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+@Preview(showBackground = true)
+@Composable
+fun GreetingPreview() {
+    MyApplicationTheme {
+        Text("Android")
+    }
+}

@@ -1,3 +1,5 @@
+package com.example.myapplication.ui.screens
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -41,6 +43,8 @@ fun SetGameScreen(
     val uiState by viewModel.uiState.collectAsState()
     var playerName by remember { mutableStateOf("") }
     val isPlayerNameValid = playerName.isNotBlank()
+    val playersCount = (uiState as? UiState.Success)?.players?.size ?: 0
+    val isGameStarted by viewModel.gameStarted.collectAsState()
 
     Column(
         modifier = modifier
@@ -63,7 +67,7 @@ fun SetGameScreen(
 
                 is UiState.Success -> {
                     val players = (uiState as UiState.Success).players
-                    val gameId = viewModel.gameId.collectAsState().value
+                    val gameId by viewModel.gameId.collectAsState()
 
                     // Display game ID at the top
                     Text(
@@ -94,7 +98,7 @@ fun SetGameScreen(
                                         verticalAlignment = Alignment.CenterVertically
                                     ) {
                                         Text(
-                                            text = player.name ?: "",
+                                            text = player.name,
                                             fontSize = 18.sp,
                                         )
                                         IconButton(
@@ -152,14 +156,14 @@ fun SetGameScreen(
                 onValueChange = { playerName = it },
                 label = { Text("Add Player Name") },
                 modifier = Modifier.weight(1f),
-                singleLine = true
+                singleLine = true,
+                enabled = !isGameStarted
             )
         }
 
         Spacer(modifier = Modifier.height(16.dp))
 
         // "Start game" button with dynamic label
-        val playersCount = (uiState as? UiState.Success)?.players?.size ?: 0
         val buttonText = when {
             playersCount == 0 -> "Create new game"
             playersCount == 1 -> "Waiting for players..."
@@ -167,8 +171,14 @@ fun SetGameScreen(
         }
 
         Button(
-            onClick = { viewModel.setGame(playerName) },
-            enabled = (isPlayerNameValid && playersCount == 0) || playersCount >= 2,
+            onClick = {
+                if (playersCount == 0) {
+                    viewModel.createGame(playerName)
+                } else {
+                    viewModel.launchGame()
+                }
+            },
+            enabled = (isPlayerNameValid && playersCount == 0) || (playersCount >= 2 && !isGameStarted),
             modifier = Modifier
                 .fillMaxWidth()
                 .height(50.dp)
