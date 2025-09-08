@@ -1,8 +1,8 @@
 package com.example.myapplication
 
-import PlayersRepository
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
+import com.example.myapplication.data.PlayersRepository
 
 class DataViewModelFactory(private val repository: PlayersRepository) : ViewModelProvider.Factory {
     override fun <T : ViewModel> create(modelClass: Class<T>): T {

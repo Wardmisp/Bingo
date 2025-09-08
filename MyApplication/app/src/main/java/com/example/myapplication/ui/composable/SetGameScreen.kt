@@ -1,4 +1,3 @@
-
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -8,7 +7,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
@@ -42,6 +40,7 @@ fun SetGameScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     var playerName by remember { mutableStateOf("") }
+    val isPlayerNameValid = playerName.isNotBlank()
 
     Column(
         modifier = modifier
@@ -51,79 +50,93 @@ fun SetGameScreen(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        // Use a 'when' statement to handle all possible states of the UI
-        when (uiState) {
-            is UiState.Loading -> {
-                // Show a loading indicator while the data is being fetched
-                CircularProgressIndicator(modifier = Modifier.padding(16.dp))
-            }
+        // Dynamic content based on UI state
+        Column(
+            modifier = Modifier.weight(1f),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            when (uiState) {
+                is UiState.Loading -> {
+                    CircularProgressIndicator(modifier = Modifier.padding(16.dp))
+                }
 
-            is UiState.Success -> {
-                // Cast the state to UiState.Success to access the players list
-                val players = (uiState as UiState.Success).players
+                is UiState.Success -> {
+                    val players = (uiState as UiState.Success).players
+                    val gameId = viewModel.gameId.collectAsState().value
 
-                // "Board" for player names
-                LazyColumn(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(max = 400.dp)
-                        .padding(8.dp)
-                ) {
-                    if (players.isNotEmpty()) {
-                        items(players) { player ->
-                            Card(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(vertical = 4.dp),
-                            ) {
-                                Row(
+                    // Display game ID at the top
+                    Text(
+                        text = "Game ID: $gameId",
+                        fontSize = 24.sp,
+                        style = MaterialTheme.typography.headlineSmall,
+                        modifier = Modifier.padding(bottom = 16.dp)
+                    )
+
+                    LazyColumn(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(max = 400.dp)
+                            .padding(8.dp)
+                    ) {
+                        if (players.isNotEmpty()) {
+                            items(players) { player ->
+                                Card(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .padding(16.dp),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
+                                        .padding(vertical = 4.dp),
                                 ) {
-                                    Text(
-                                        text = player.name ?: "",
-                                        fontSize = 18.sp,
-                                    )
-                                    IconButton(
-                                        onClick = { viewModel.removePlayer(player) }
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(16.dp),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
                                     ) {
-                                        Icon(
-                                            painter = painterResource(R.drawable.baseline_clear_24),
-                                            contentDescription = "Remove Player",
-                                            tint = MaterialTheme.colorScheme.error
+                                        Text(
+                                            text = player.name ?: "",
+                                            fontSize = 18.sp,
                                         )
+                                        IconButton(
+                                            onClick = { viewModel.removePlayer(player) }
+                                        ) {
+                                            Icon(
+                                                painter = painterResource(R.drawable.baseline_clear_24),
+                                                contentDescription = "Remove Player",
+                                                tint = MaterialTheme.colorScheme.error
+                                            )
+                                        }
                                     }
                                 }
                             }
-                        }
-                    } else {
-                        item {
-                            // Show a message when the list is empty
-                            Text(text = "No players found. Add one!")
+                        } else {
+                            item {
+                                Text(
+                                    text = "No players found. Add one!",
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(16.dp),
+                                )
+                            }
                         }
                     }
                 }
-            }
 
-            is UiState.Error -> {
-                // Show an error message if the API call failed
-                val errorMessage = (uiState as UiState.Error).message
-                Text(
-                    text = "Error: $errorMessage",
-                    color = MaterialTheme.colorScheme.error,
-                    modifier = Modifier.padding(16.dp)
-                )
-            }
-            is UiState.Initial -> {
-                // Show an error message if the API call failed
-                Text(
-                    text = "Welcome to the bingo!",
-                    color = MaterialTheme.colorScheme.error,
-                    modifier = Modifier.padding(16.dp)
-                )
+                is UiState.Error -> {
+                    val errorMessage = (uiState as UiState.Error).message
+                    Text(
+                        text = "Error: $errorMessage",
+                        color = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.padding(16.dp)
+                    )
+                }
+
+                is UiState.Initial -> {
+                    Text(
+                        text = "Welcome to the bingo! Enter your name to create a game.",
+                        modifier = Modifier.padding(16.dp),
+                    )
+                }
             }
         }
 
@@ -138,32 +151,29 @@ fun SetGameScreen(
                 value = playerName,
                 onValueChange = { playerName = it },
                 label = { Text("Add Player Name") },
-                modifier = Modifier.weight(1f)
+                modifier = Modifier.weight(1f),
+                singleLine = true
             )
-            IconButton(
-                onClick = {
-                    viewModel.setGame(playerName)
-                    playerName = ""
-                },
-            ) {
-                Icon(
-                    painter = painterResource(R.drawable.baseline_add_circle_outline_24),
-                    contentDescription = "Add Player",
-                    modifier = Modifier.size(48.dp)
-                )
-            }
         }
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // "Start game" button
+        // "Start game" button with dynamic label
+        val playersCount = (uiState as? UiState.Success)?.players?.size ?: 0
+        val buttonText = when {
+            playersCount == 0 -> "Create new game"
+            playersCount == 1 -> "Waiting for players..."
+            else -> "Launch the game"
+        }
+
         Button(
-            onClick = { /* TODO: Implement game start logic */ },
+            onClick = { viewModel.setGame(playerName) },
+            enabled = (isPlayerNameValid && playersCount == 0) || playersCount >= 2,
             modifier = Modifier
                 .fillMaxWidth()
                 .height(50.dp)
         ) {
-            Text("Start game")
+            Text(buttonText)
         }
     }
 }

@@ -8,14 +8,15 @@ data class Player(
 
 data class PlayerRegistration(
     @SerializedName("name")
-    //This is a name more idiomatic to Kotlin
-    val name: String
+    val name: String,
+    @SerializedName("gameId")
+    val gameId: String? = null
 )
 
 data class RegistrationResponse(
     val status: String,
     val message: String,
     @SerializedName("id")
-    val playerId: Int,
+    val playerId: String,
     val gameId: String
 )
