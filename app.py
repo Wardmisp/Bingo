@@ -197,10 +197,7 @@ def join_game():
         players_collection.insert_one(new_player)
 
         logging.info(f"Successfully joined game {game_id} with new player: {player_name}")
-        return jsonify({
-            "message": f"Player '{player_name}' registered successfully in game {game_id}.",
-            "playerId": new_player_id
-        }), 201
+        return jsonify(new_player), 201
 
     except Exception as e:
         logging.error(f"Error during player join: {e}")
