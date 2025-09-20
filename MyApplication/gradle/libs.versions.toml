@@ -1,6 +1,7 @@
 [versions]
 agp = "8.8.0"
 converterGson = "2.11.0"
+foundation = "<compose_version>"
 kotlin = "2.0.0"
 coreKtx = "1.16.0"
 junit = "4.13.2"
@@ -13,9 +14,13 @@ lifecycleViewmodelCompose = "2.9.2"
 retrofit = "2.11.0"
 retrofitCoroutinesAdapter = "0.9.2"
 storage = "1.5.0"
+navigationRuntimeKtx = "2.9.4"
+navigationCompose = "2.9.4"
+
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
+androidx-foundation = { module = "androidx.compose.foundation:foundation", version.ref = "foundation" }
 androidx-lifecycle-viewmodel-compose = { module = "androidx.lifecycle:lifecycle-viewmodel-compose", version.ref = "lifecycleViewmodelCompose" }
 converter-gson = { module = "com.squareup.retrofit2:converter-gson", version.ref = "converterGson" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
@@ -34,6 +39,9 @@ androidx-material3 = { group = "androidx.compose.material3", name = "material3" 
 retrofit = { module = "com.squareup.retrofit2:retrofit", version.ref = "retrofit" }
 retrofit-coroutines-adapter = { module = "com.squareup.retrofit2:retrofit-coroutines-adapter", version.ref = "retrofitCoroutinesAdapter" }
 androidx-storage = { group = "androidx.test.services", name = "storage", version.ref = "storage" }
+androidx-navigation-runtime-ktx = { group = "androidx.navigation", name = "navigation-runtime-ktx", version.ref = "navigationRuntimeKtx" }
+androidx-navigation-compose = { group = "androidx.navigation", name = "navigation-compose", version.ref = "navigationCompose" }
+
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

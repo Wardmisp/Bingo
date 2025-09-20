@@ -20,12 +20,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
+import androidx.navigation.compose.rememberNavController
 import com.example.bingoapp.ui.screens.JoinGameScreen
 import com.example.myapplication.bingocards.BingoCardsRepository
 import com.example.myapplication.network.RetrofitInstance
@@ -33,15 +34,9 @@ import com.example.myapplication.ui.composable.BingoCardScreen
 import com.example.myapplication.ui.screens.SetGameScreen
 import com.example.myapplication.ui.theme.MyApplicationTheme
 
-sealed class Screen {
-    object SetGame : Screen()
-    object JoinGame : Screen()
-    object InGame : Screen()
-}
-
 @Composable
 fun MainScreen() {
-    var currentScreen by remember { mutableStateOf<Screen>(Screen.SetGame) }
+    val navController = rememberNavController()
     val viewModel: DataViewModel = viewModel(
         factory = DataViewModelFactory(
             PlayersRepository(apiService = RetrofitInstance.apiService),
@@ -53,7 +48,7 @@ fun MainScreen() {
     // Observe game state and navigate to the in-game screen
     LaunchedEffect(gameStarted) {
         if (gameStarted) {
-            currentScreen = Screen.InGame
+            navController.navigate("in_game")
         }
     }
 
@@ -64,8 +59,10 @@ fun MainScreen() {
                 containerColor = MaterialTheme.colorScheme.primaryContainer,
                 contentColor = MaterialTheme.colorScheme.primary
             ) {
+                val navBackStackEntry by navController.currentBackStackEntryAsState()
+                navBackStackEntry?.destination?.route
                 IconButton(
-                    onClick = { currentScreen = Screen.SetGame },
+                    onClick = { navController.navigate("set_game") },
                     modifier = Modifier.weight(1f)
                 ) {
                     Icon(
@@ -75,7 +72,7 @@ fun MainScreen() {
                 }
 
                 IconButton(
-                    onClick = { currentScreen = Screen.JoinGame },
+                    onClick = { navController.navigate("join_game")  },
                     modifier = Modifier.weight(1f)
                 ) {
                     Icon(
@@ -86,19 +83,21 @@ fun MainScreen() {
             }
         }
     ) { innerPadding ->
-        when (currentScreen) {
-            is Screen.SetGame -> SetGameScreen(
-                modifier = Modifier.padding(innerPadding),
-                viewModel = viewModel
-            )
-            is Screen.JoinGame -> JoinGameScreen(
-                modifier = Modifier.padding(innerPadding),
-                viewModel = viewModel
-            )
-            is Screen.InGame -> BingoCardScreen(
-                modifier = Modifier.padding(innerPadding),
-                viewModel = viewModel
-            )
+        NavHost(
+            navController = navController,
+            startDestination = "set_game",
+            modifier = Modifier.padding(innerPadding)
+        ) {
+            composable("set_game") {
+                SetGameScreen(viewModel = viewModel,
+                    navController = navController)
+            }
+            composable("join_game") {
+                JoinGameScreen(viewModel = viewModel)
+            }
+            composable("in_game") {
+                BingoCardScreen(viewModel = viewModel)
+            }
         }
     }
 }

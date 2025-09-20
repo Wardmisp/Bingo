@@ -31,6 +31,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavController
 import com.example.myapplication.DataViewModel
 import com.example.myapplication.R
 import com.example.myapplication.ui.utils.UiState
@@ -38,6 +39,7 @@ import com.example.myapplication.ui.utils.UiState
 @Composable
 fun SetGameScreen(
     modifier: Modifier = Modifier,
+    navController: NavController,
     viewModel: DataViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -166,8 +168,8 @@ fun SetGameScreen(
         // "Start game" button with dynamic label
         val buttonText = when {
             playersCount == 0 -> "Create new game"
-            playersCount == 1 -> "Waiting for players..."
             else -> "Launch the game"
+            //else -> "Launch the game"
         }
 
         Button(
@@ -176,9 +178,10 @@ fun SetGameScreen(
                     viewModel.createGame(playerName)
                 } else {
                     viewModel.launchGame()
+                    navController.navigate("in_game")
                 }
             },
-            enabled = (isPlayerNameValid && playersCount == 0) || (playersCount >= 2 && !isGameStarted),
+            enabled = (isPlayerNameValid && playersCount == 0) || (playersCount >= 1 && !isGameStarted),
             modifier = Modifier
                 .fillMaxWidth()
                 .height(50.dp)
