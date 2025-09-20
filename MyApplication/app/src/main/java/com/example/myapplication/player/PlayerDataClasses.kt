@@ -3,9 +3,7 @@ package com.example.myapplication.player
 import com.google.gson.annotations.SerializedName
 
 data class Player(
-    @SerializedName("id")
     val playerId: String,
-    @SerializedName("name")
     val name: String,
     val gameId: String,
     val gameStarted: Boolean,
