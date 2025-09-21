@@ -258,7 +258,7 @@ def click_number_on_bingo_card(cardId, number):
             return jsonify({"success": False, "error": "Failed to update card."}), 500
 
         logging.info(f"Successfully updated card {cardId}: {result.matched_count} document matched, {result.modified_count} modified.")
-        return jsonify({"success": True}), 200
+        return jsonify(True), 200
 
     except Exception as e:
         logging.error(f"An error occurred: {e}")
