@@ -89,6 +89,10 @@ def get_player_card(gameId, playerId):
     # Find the bingo card document using the stored ID
     try:
         bingo_card_doc = bingo_cards_collection.find_one({"_id": ObjectId(bingo_card_id)}, {"_id": 0})
+
+        bingo_card_doc['_id'] = str(bingo_card_doc['_id'])
+        bingo_card_doc['cardId'] = bingo_card_id
+        
     except Exception:
         logging.warning(f"Invalid ObjectId for bingo card ID: {bingo_card_id}")
         return jsonify({"error": "Invalid bingo card ID."}), 400
