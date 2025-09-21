@@ -15,6 +15,14 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.myapplication.DataViewModel
 import com.example.myapplication.ui.utils.UiState
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.ui.Alignment
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.RectangleShape
 
 @Composable
 fun BingoCardScreen(
@@ -38,10 +46,17 @@ fun BingoCardScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .padding(16.dp)
+            .padding(16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text(
             text = "Your Bingo Card",
+            modifier = Modifier.fillMaxWidth(),
+            textAlign = TextAlign.Center
+        )
+
+        Text(
+            text = "Game ID: $gameId",
             modifier = Modifier.fillMaxWidth(),
             textAlign = TextAlign.Center
         )
@@ -51,8 +66,66 @@ fun BingoCardScreen(
                 Text("Loading your card...")
             }
             else -> {
-                Text(text = "Bingo Card: ${bingoCardState?.card}")
+                BingoCardGrid(
+                    card = bingoCardState!!.card,
+                    onNumberClick = { number ->
+                        // Handle the click event, e.g., call a ViewModel function
+                        // viewModel.onNumberClicked(number)
+                    }
+                )
             }
         }
+    }
+}
+
+@Composable
+fun BingoCardGrid(
+    card: List<List<Int?>>,
+    onNumberClick: (Int?) -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        card.forEach { row ->
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceAround
+            ) {
+                row.forEach { number ->
+                    BingoSquare(
+                        modifier = Modifier.weight(1f)
+                                .aspectRatio(1f) // Ensures the button is square
+                                .padding(1.dp),
+                        number = number,
+                        onClick = { onNumberClick(number) }
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun BingoSquare(
+    number: Int?,
+    onClick: () -> Unit,
+    modifier: Modifier
+) {
+    Button(
+        onClick = onClick,
+        modifier = modifier,
+        shape = RectangleShape, // Sets the button shape to a square
+        colors = ButtonDefaults.buttonColors(
+            containerColor = Color.LightGray
+        )
+    ) {
+        Text(
+            text = number?.toString() ?: "\u2605",
+            textAlign = TextAlign.Center
+        )
     }
 }
