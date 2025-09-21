@@ -69,8 +69,8 @@ fun BingoCardScreen(
                 BingoCardGrid(
                     card = bingoCardState!!.card,
                     onNumberClick = { number ->
-                        // Handle the click event, e.g., call a ViewModel function
-                        // viewModel.onNumberClicked(number)
+                        TODO("Handle number click with server interaction and ui update")
+                        //viewModel.onNumberClicked(number)
                     }
                 )
             }
