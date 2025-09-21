@@ -25,11 +25,17 @@ interface ApiService {
         suspend fun removePlayer(
                 @Path("playerId") playerId: String,
                 @Path("gameId") gameId: String
-        ): Response<Unit>
+        ): Response<RegistrationResponse>
 
         @GET("player-card/{gameId}/{playerId}")
         suspend fun getBingoCard(
                 @Path("gameId") gameId: String,
                 @Path("playerId") playerId: String
         ): BingoCard
+
+        @POST("player-card/{cardId}/{number}")
+        suspend fun clickNumberOnBingoCard(
+                @Path("number") number: Int,
+                @Path("cardId") cardId: String?
+        ): Boolean
 }

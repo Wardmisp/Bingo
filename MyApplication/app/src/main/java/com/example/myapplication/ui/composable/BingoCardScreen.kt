@@ -69,8 +69,9 @@ fun BingoCardScreen(
                 BingoCardGrid(
                     card = bingoCardState!!.card,
                     onNumberClick = { number ->
-                        TODO("Handle number click with server interaction and ui update")
-                        //viewModel.onNumberClicked(number)
+                        if (number != null) {
+                            viewModel.onNumberClicked(number)
+                        }
                     }
                 )
             }
@@ -124,7 +125,11 @@ fun BingoSquare(
         )
     ) {
         Text(
-            text = number?.toString() ?: "\u2605",
+            text = when {
+                number == -1 -> "\u2713"
+                number != null -> number.toString()
+                else -> "\u2605"
+            },
             textAlign = TextAlign.Center
         )
     }

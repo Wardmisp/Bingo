@@ -63,7 +63,7 @@ class PlayersRepository(private val apiService: ApiService) {
         }
     }
 
-    suspend fun removePlayer(player: Player): ApiResult<Unit> {
+    /*suspend fun removePlayer(player: Player): ApiResult<Unit> {
         return try {
             val response: Response<Unit> = apiService.removePlayer(player.playerId, player.gameId)
             if (response.isSuccessful) {
@@ -76,5 +76,5 @@ class PlayersRepository(private val apiService: ApiService) {
         } catch (e: Exception) {
             ApiResult.Error("An unexpected error occurred from removePlayer: ${e.message}")
         }
-    }
+    }*/
 }

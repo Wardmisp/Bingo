@@ -15,4 +15,18 @@ class BingoCardsRepository(private val apiService: ApiService) {
             ApiResult.Error("An unexpected error occurred from fetchBingoCard: ${e.message}")
         }
     }
+
+    suspend fun clickNumber(
+        number: Int,
+        cardId: String?
+    ): ApiResult<Boolean>{
+        return try {
+            val result = apiService.clickNumberOnBingoCard(number, cardId)
+            ApiResult.Success(result)
+        } catch (e: IOException) {
+            ApiResult.Error("Network error: ${e.message}")
+        } catch (e: Exception) {
+            ApiResult.Error("An unexpected error occurred from fetchBingoCard: ${e.message}")
+        }
+    }
 }

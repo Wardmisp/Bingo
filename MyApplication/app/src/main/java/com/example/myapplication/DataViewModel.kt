@@ -1,6 +1,7 @@
 package com.example.myapplication
 
 import PlayersRepository
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.myapplication.bingocards.BingoCard
@@ -103,6 +104,34 @@ class DataViewModel(
             }
         }
     }
+
+
+
+    fun onNumberClicked(number: Int) {
+        viewModelScope.launch {
+            when (val result = bingoCardsRepository.clickNumber(number, bingoCardState.value?.cardId)) {
+                is ApiResult.Success -> {
+                    if (result.data) {
+                        if (uiState.value is UiState.Success) {
+                            val currentPlayer = (uiState.value as UiState.Success).players.firstOrNull { it.gameId == gameId.value }
+                            if (currentPlayer != null) {
+                                fetchBingoCard(currentPlayer.gameId, currentPlayer.playerId)
+                            }
+                        }
+                    }
+                }
+                is ApiResult.Error -> {
+                    // Handle error state for bingo card fetching
+                }
+                is ApiResult.Loading -> {
+                    // Handle loading state
+                }
+            }
+        }
+        //TODO("manage web service return to have better logging system on bingo cards update after click")
+
+    }
+
 
     fun launchGame() {
         // Implementation for launching the game
