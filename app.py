@@ -209,3 +209,57 @@ def join_game():
     except Exception as e:
         logging.error(f"Error during player join: {e}")
         return jsonify({"error": "An internal server error occurred."}), 500
+
+
+@app.route('/player-card/<cardId>/<int:number>', methods=['POST'])
+def click_number_on_bingo_card(cardId, number):
+    """
+    Finds a bingo card by ID and updates the specified number to -1.
+    """
+    logging.info(f"POST request received to update card {cardId} with number {number}.")
+    
+    # Validate the number
+    if not 1 <= number <= 75:
+        logging.warning(f"Invalid number provided: {number}")
+        return jsonify({"success": False, "error": "Invalid number. Must be between 1 and 75."}), 400
+
+    try:
+        # Find the document by its ObjectId
+        card_doc = bingo_cards_collection.find_one({"_id": ObjectId(cardId)})
+        
+        if not card_doc:
+            logging.warning(f"Bingo card not found with ID: {cardId}")
+            return jsonify({"success": False, "error": "Bingo card not found."}), 404
+
+        # Iterate through the 2D array to find and update the number
+        card_updated = False
+        updated_card_data = card_doc['card']
+        for i in range(len(updated_card_data)):
+            for j in range(len(updated_card_data[i])):
+                if updated_card_data[i][j] == number:
+                    updated_card_data[i][j] = -1
+                    card_updated = True
+                    break
+            if card_updated:
+                break
+        
+        if not card_updated:
+            logging.warning(f"Number {number} not found on card {cardId}.")
+            return jsonify({"success": False, "error": "Number not found on the bingo card."}), 404
+            
+        # Update the document in the database
+        result = bingo_cards_collection.update_one(
+            {"_id": ObjectId(cardId)},
+            {"$set": {"card": updated_card_data}}
+        )
+
+        if result.matched_count == 0:
+            logging.error(f"Failed to find and update document with ID: {cardId}")
+            return jsonify({"success": False, "error": "Failed to update card."}), 500
+
+        logging.info(f"Successfully updated card {cardId}: {result.matched_count} document matched, {result.modified_count} modified.")
+        return jsonify({"success": True}), 200
+
+    except Exception as e:
+        logging.error(f"An error occurred: {e}")
+        return jsonify({"success": False, "error": "An internal server error occurred."}), 500
