@@ -61,6 +61,12 @@
         color: #000000;
       }
 
+      .filled-cell {
+        background-color: #e20d0d;
+        border-color: #e20d0d;
+        color: #e20d0d;
+      }
+
       /* Responsive adjustments */
       @media (max-width: 768px) {
         .player-card {
@@ -177,9 +183,12 @@
                   const cell = document.createElement("div");
                   cell.className = "cell";
 
-                  if (number !== null) {
+                  if (number >= 0) {
                     cell.textContent = number;
-                  } else {
+                  } else if (number == -1) {
+                    cell.classList.add("filled-cell");
+                  }
+                  else {
                     cell.classList.add("blank-cell");
                   }
                   gridDiv.appendChild(cell);
