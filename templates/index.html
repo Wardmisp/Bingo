@@ -158,72 +158,71 @@ function fetchPlayers() {
         return;
       }
 
-      // Use Promise.all to fetch all bingo cards concurrently
-      const cardPromises = players.map((player) =>
-        fetch(`/bingocards/${player.bingo_card_id}`)
+      // Use Promise.all to fetch each player's complete data including their card
+      const playerCardPromises = players.map((player) =>
+        fetch(`/player-card/${player.gameId}/${player.playerId}`)
           .then((response) => {
             if (!response.ok) {
-              throw new Error(`Failed to fetch bingo card for ID: ${player.bingo_card_id}`);
+              throw new Error(`Failed to fetch card for player ${player.playerId}`);
             }
             return response.json();
           })
-          .then((bingoCardData) => ({
+          .then((cardData) => ({
             ...player,
-            bingo_card: bingoCardData.card,
+            bingo_card: cardData.card,
           }))
           .catch((error) => {
             console.error(error);
-            return {
-              ...player,
-              bingo_card: null, // Handle missing or failed card data
-            };
+            // Return player with a null card if fetch fails
+            return { ...player, bingo_card: null };
           })
       );
 
-      // Wait for all card fetches to complete before rendering
-      Promise.all(cardPromises).then((playersWithCards) => {
-        playersWithCards.forEach((player) => {
-          if (!player.bingo_card) {
-            console.warn(`Skipping player ${player.name} due to missing bingo card data.`);
-            return;
-          }
+      Promise.all(playerCardPromises)
+        .then((playersWithCards) => {
+          playersWithCards.forEach((player) => {
+            // Check if bingo_card is present before rendering
+            if (!player.bingo_card) {
+              console.warn(`Skipping player ${player.name} due to missing bingo card.`);
+              return;
+            }
 
-          const cardDiv = document.createElement("div");
-          cardDiv.className = "player-card";
+            const cardDiv = document.createElement("div");
+            cardDiv.className = "player-card";
 
-          const nameHeader = document.createElement("h2");
-          nameHeader.className = "text-2xl font-bold mb-2";
-          nameHeader.textContent = player.name;
-          cardDiv.appendChild(nameHeader);
+            const nameHeader = document.createElement("h2");
+            nameHeader.className = "text-2xl font-bold mb-2";
+            nameHeader.textContent = player.name;
+            cardDiv.appendChild(nameHeader);
 
-          const gameIdText = document.createElement("p");
-          gameIdText.className = "text-sm text-gray-500 mb-4";
-          gameIdText.textContent = `Game ID: ${player.gameId}`;
-          cardDiv.appendChild(gameIdText);
+            const gameIdText = document.createElement("p");
+            gameIdText.className = "text-sm text-gray-500 mb-4";
+            gameIdText.textContent = `Game ID: ${player.gameId}`;
+            cardDiv.appendChild(gameIdText);
 
-          const gridDiv = document.createElement("div");
-          gridDiv.className = "bingo-grid";
+            const gridDiv = document.createElement("div");
+            gridDiv.className = "bingo-grid";
 
-          player.bingo_card.forEach((row) => {
-            row.forEach((number) => {
-              const cell = document.createElement("div");
-              cell.className = "cell";
+            player.bingo_card.forEach((row) => {
+              row.forEach((number) => {
+                const cell = document.createElement("div");
+                cell.className = "cell";
 
-              if (number >= 0) {
-                cell.textContent = number;
-              } else if (number == -1) {
-                cell.classList.add("filled-cell");
-              } else {
-                cell.classList.add("blank-cell");
-              }
-              gridDiv.appendChild(cell);
+                if (number >= 0) {
+                  cell.textContent = number;
+                } else if (number == -1) {
+                  cell.classList.add("filled-cell");
+                } else {
+                  cell.classList.add("blank-cell");
+                }
+                gridDiv.appendChild(cell);
+              });
             });
-          });
 
-          cardDiv.appendChild(gridDiv);
-          container.appendChild(cardDiv);
+            cardDiv.appendChild(gridDiv);
+            container.appendChild(cardDiv);
+          });
         });
-      });
     })
     .catch((error) => {
       console.error("Error fetching players:", error);
