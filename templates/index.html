@@ -55,12 +55,6 @@
         aspect-ratio: 1 / 1;
       }
 
-      .blank-cell {
-        background-color: #000000;
-        border-color: #000000;
-        color: #000000;
-      }
-
       .filled-cell {
         background-color: #e20d0d;
         border-color: #e20d0d;
@@ -213,7 +207,7 @@ function fetchPlayers() {
                 } else if (number == -1) {
                   cell.classList.add("filled-cell");
                 } else {
-                  cell.classList.add("blank-cell");
+                  cell.textContent = "★";
                 }
                 gridDiv.appendChild(cell);
               });
