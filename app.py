@@ -112,7 +112,7 @@ def fetch_bingo_card(gameId, playerId):
         if not player_doc:
             return jsonify({"success": False, "error": "Player not found"}), 404
 
-        card_doc = bingo_cards_collection.find_one({"_id": player_doc['cardId']})
+        card_doc = bingo_cards_collection.find_one({"_id": player_doc['bingo_card_id']})
 
         if not card_doc:
             # Handle the case where a player is found but their card isn't
