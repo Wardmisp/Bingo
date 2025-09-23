@@ -251,7 +251,7 @@ def click_number_on_bingo_card(cardId, number):
     """
     Finds a bingo card by ID and updates the specified number to -1.
     """
-    logging.info(f"POST request received to update card {cardId} with number {number}.")
+    logging.info(f"click_number_on_bingo_card : POST request received to update card {cardId} with number {number}.")
     
     # Validate the number
     if not 1 <= number <= 75:
@@ -260,6 +260,8 @@ def click_number_on_bingo_card(cardId, number):
 
     try:
         # Find the document by its ObjectId
+        logging.warning(f"click_number_on_bingo_card: enter try")
+
         card_doc = bingo_cards_collection.find_one({"_id": ObjectId(cardId)})
         
         if not card_doc:
@@ -269,6 +271,7 @@ def click_number_on_bingo_card(cardId, number):
         # Iterate through the 2D array to find and update the number
         card_updated = False
         updated_card_data = card_doc['card']
+        logging.warning(f"click_number_on_bingo_card: updated_card_data ={updated_card_data}")
         for i in range(len(updated_card_data)):
             for j in range(len(updated_card_data[i])):
                 if updated_card_data[i][j] == number:
