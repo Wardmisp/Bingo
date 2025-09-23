@@ -1,6 +1,8 @@
 package com.example.myapplication
 
 import PlayersRepository
+import SseClient
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.myapplication.bingocards.BingoCard
@@ -14,11 +16,13 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
+import okhttp3.Response
 
 class DataViewModel(
     private val playersRepository: PlayersRepository,
     private val bingoCardsRepository: BingoCardsRepository
-) : ViewModel() {
+) : ViewModel(),
+    SseClient.SseListener {
 
     private val _uiState = MutableStateFlow<UiState>(UiState.Initial)
     val uiState: StateFlow<UiState> = _uiState
@@ -31,6 +35,12 @@ class DataViewModel(
 
     private val _gameStarted = MutableStateFlow(false)
     val gameStarted: StateFlow<Boolean> = _gameStarted
+
+    private val _nextNumber = MutableStateFlow<Int?>(null)
+
+    val nextNumber: StateFlow<Int?> = _nextNumber
+
+    private lateinit var sseClient: SseClient
 
     private var pollingJob: Job? = null
 
@@ -48,6 +58,48 @@ class DataViewModel(
                 }
             }
         }
+    }
+
+    fun connectToBingoStream(gameId: String) {
+        sseClient = SseClient(this)
+        sseClient.connect(gameId)
+    }
+
+    override fun onEvent(event: String, data: String) {
+        // Log the full event for debugging
+        Log.d("SSETESTING", "Received event: $event, Data: $data")
+
+        when (event) {
+            "bingo_number" -> {
+                try {
+                    // Convert the data string to an Int and update your state
+                    val number = data.toInt()
+                    _nextNumber.value = number
+                    Log.d("SSETESTING", "onEvent: Bingo number received: $number")
+                } catch (e: NumberFormatException) {
+                    Log.e("SSETESTING", "Error parsing number: $data", e)
+                }
+            }
+            "game_over" -> {
+                // Handle the game over event here, e.g., show a message to the user
+                Log.d("SSETESTING", "onEvent: Game over event received.")
+                // _gameStatus.value = "Game Over"
+            }
+            else -> {
+                Log.w("SSETESTING", "Received unhandled event type: $event")
+            }
+        }
+    }
+
+    override fun onFailure(t: Throwable, response: Response?) {
+        // Your failure handling code remains the same
+        Log.e("SSETESTING", "Connection failed", t)
+    }
+
+    // Ensure you disconnect when the ViewModel is no longer needed
+    override fun onCleared() {
+        super.onCleared()
+        sseClient.disconnect()
     }
 
     private suspend fun fetchPlayers(gameId: String) {

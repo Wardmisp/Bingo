@@ -39,6 +39,7 @@ fun BingoCardScreen(
             val currentPlayer = currentState.players.firstOrNull { it.gameId == gameId }
             if (currentPlayer != null) {
                 viewModel.fetchBingoCard(currentPlayer.gameId, currentPlayer.playerId)
+                viewModel.connectToBingoStream(currentPlayer.gameId)
             }
         }
     }

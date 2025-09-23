@@ -170,6 +170,7 @@ fun SetGameScreen(
             playersCount == 0 -> "Create new game"
             else -> "Launch the game"
             //else -> "Launch the game"
+            // @T0DO(DONT FORGET WAITING FOR PLAYERS)
         }
 
         Button(
