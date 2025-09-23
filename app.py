@@ -298,7 +298,7 @@ def click_number_on_bingo_card(cardId, number):
         logging.info(f"Successfully updated card {cardId}: {result.matched_count} document matched, {result.modified_count} modified.")
 
         player_id = card_doc['playerId']
-        player_doc = players_collection.find_one({"_id": ObjectId(player_id)})
+        player_doc = players_collection.find_one({"playerId": player_id})
         
         # Check for a win (any line, column, or diagonal of -1s)
         if _is_winner(updated_card_data):
