@@ -7,6 +7,7 @@ from pymongo import MongoClient
 from bingo_card_generator import generate_bingo_card
 from bson.objectid import ObjectId
 import time
+from concurrent.futures import ThreadPoolExecutor
 
 # Some utils
 def is_game_id_unique(game_id):
@@ -25,8 +26,41 @@ def generate_unique_numeric_id():
         if is_game_id_unique(new_id):
             return new_id
 
+def _is_winner(card):
+    # Check rows ONLY
+    for row in card:
+        if all(x == -1 for x in row if x is not None):
+            return True
+
+
+def _send_game_over_event(game_id, winner_name):
+    """Sends game over notifications to all players in a game."""
+    global streams # Make sure to get your global streams dictionary
+    
+    if game_id not in streams:
+        return
+
+    player_queues = streams[game_id]
+    
+    for player_id, player_queue in player_queues:
+        # Get player's name from players_collection
+        player_doc = players_collection.find_one({"_id": ObjectId(player_id)})
+        current_player_name = player_doc['name'] if player_doc else "Unknown Player"
+
+        if current_player_name == winner_name:
+            # Send congratulatory message to the winner
+            message = f"event: game_over\ndata: Congratulations! You won!\n\n"
+        else:
+            # Send 'try again' message to losers
+            message = f"event: game_over\ndata: Game over! {winner_name} won. Try again!\n\n"
+        
+        player_queue.put(message.encode('utf-8'))
+
 # Load the environment variable from Render
 mongo_uri = os.getenv("MONGO_URI")
+
+# To manage threads 
+executor = ThreadPoolExecutor(max_workers=8)
 
 app = Flask(__name__)
 
@@ -258,6 +292,18 @@ def click_number_on_bingo_card(cardId, number):
             return jsonify({"success": False, "error": "Failed to update card."}), 500
 
         logging.info(f"Successfully updated card {cardId}: {result.matched_count} document matched, {result.modified_count} modified.")
+
+        player_id = card_doc['playerId']
+        player_doc = players_collection.find_one({"_id": ObjectId(player_id)})
+        
+        # Check for a win (any line, column, or diagonal of -1s)
+        if _is_winner(updated_card_data):
+            # If a win is detected, get the winner's name and send the event
+            winner_name = player_doc['name'] if player_doc else "Unknown Player"
+            game_id = player_doc['gameId'] if player_doc else None
+            if game_id:
+                executor.submit(_send_game_over_event, game_id, winner_name)
+
         return jsonify(True), 200
 
     except Exception as e:
