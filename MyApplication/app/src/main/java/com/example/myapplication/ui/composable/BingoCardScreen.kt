@@ -16,13 +16,17 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.myapplication.DataViewModel
 import com.example.myapplication.ui.utils.UiState
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
-import androidx.compose.ui.Alignment
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.sp
 
 @Composable
 fun BingoCardScreen(
@@ -32,6 +36,7 @@ fun BingoCardScreen(
     val uiState by viewModel.uiState.collectAsState()
     val bingoCardState by viewModel.bingoCardState.collectAsState()
     val gameId by viewModel.gameId.collectAsState()
+    val nextNumber by viewModel.nextNumber.collectAsState() // Observe the new state
 
     LaunchedEffect(Unit) {
         val currentState = uiState
@@ -74,6 +79,30 @@ fun BingoCardScreen(
                             viewModel.onNumberClicked(number)
                         }
                     }
+                )
+            }
+        }
+        if (nextNumber != null) {
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "$nextNumber",
+                    fontSize = 48.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary,
+                    textAlign = TextAlign.Center
+                )
+            }
+        } else {
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "Waiting for first number...",
+                    modifier = Modifier.padding(top = 24.dp)
                 )
             }
         }

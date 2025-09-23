@@ -1,6 +1,7 @@
 package com.example.myapplication
 
 import PlayersRepository
+import android.app.Application
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -21,6 +22,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.NavHost
@@ -37,8 +39,13 @@ import com.example.myapplication.ui.theme.MyApplicationTheme
 @Composable
 fun MainScreen() {
     val navController = rememberNavController()
+
+    val context = LocalContext.current
+    val application = context.applicationContext as Application
+
     val viewModel: DataViewModel = viewModel(
         factory = DataViewModelFactory(
+            application = application,
             PlayersRepository(apiService = RetrofitInstance.apiService),
             bingoCardsRepository = BingoCardsRepository(apiService = RetrofitInstance.apiService)
         )

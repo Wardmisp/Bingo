@@ -1,8 +1,11 @@
 package com.example.myapplication
 
 import PlayersRepository
+import SoundPlayer
 import SseClient
+import android.app.Application
 import android.util.Log
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.myapplication.bingocards.BingoCard
@@ -19,9 +22,10 @@ import kotlinx.coroutines.launch
 import okhttp3.Response
 
 class DataViewModel(
+    application: Application,
     private val playersRepository: PlayersRepository,
     private val bingoCardsRepository: BingoCardsRepository
-) : ViewModel(),
+) : AndroidViewModel(application),
     SseClient.SseListener {
 
     private val _uiState = MutableStateFlow<UiState>(UiState.Initial)
@@ -43,6 +47,8 @@ class DataViewModel(
     private lateinit var sseClient: SseClient
 
     private var pollingJob: Job? = null
+
+    private val soundPlayer = SoundPlayer(application.applicationContext)
 
     init {
         viewModelScope.launch {
@@ -75,14 +81,14 @@ class DataViewModel(
                     // Convert the data string to an Int and update your state
                     val number = data.toInt()
                     _nextNumber.value = number
-                    Log.d("SSETESTING", "onEvent: Bingo number received: ${nextNumber.value}")
+                    soundPlayer.playSuccessSound()
                 } catch (e: NumberFormatException) {
-                    Log.e("SSETESTING", "Error parsing number: $data", e)
+                    Log.e("DataViewModel", "onEvent: Error parsing number: $data", e)
                 }
             }
             "game_over" -> {
                 // Handle the game over event here, e.g., show a message to the user
-                Log.d("SSETESTING", "onEvent: Game over event received.")
+                Log.d("DataViewModel", "onEvent: Game over event received.")
                 // _gameStatus.value = "Game Over"
             }
             else -> {
@@ -99,6 +105,7 @@ class DataViewModel(
     // Ensure you disconnect when the ViewModel is no longer needed
     override fun onCleared() {
         super.onCleared()
+        soundPlayer.release()
         sseClient.disconnect()
     }
 
