@@ -108,7 +108,7 @@ def get_players(gameId):
 def fetch_bingo_card(gameId, playerId):
     try:
         # It's better to fetch the card by player ID if you don't have the card ID
-        player_doc = players_collection.find_one({"_id": ObjectId(playerId)})
+        player_doc = players_collection.find_one({"playerId": playerId})
         if not player_doc:
             return jsonify({"success": False, "error": "Player not found"}), 404
 
