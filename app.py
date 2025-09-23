@@ -6,6 +6,7 @@ import logging
 from pymongo import MongoClient
 from bingo_card_generator import generate_bingo_card
 from bson.objectid import ObjectId
+from bson.errors import InvalidId
 import time
 from concurrent.futures import ThreadPoolExecutor
 
@@ -49,9 +50,11 @@ def _send_game_over_event(game_id, winner_name):
 
         if current_player_name == winner_name:
             # Send congratulatory message to the winner
+            logging.debug("Congratulations! You won!")
             message = f"event: game_over\ndata: Congratulations! You won!\n\n"
         else:
             # Send 'try again' message to losers
+            logging.debug("Congratulations! You lose!")
             message = f"event: game_over\ndata: Game over! {winner_name} won. Try again!\n\n"
         
         player_queue.put(message.encode('utf-8'))
@@ -101,42 +104,31 @@ def get_players(gameId):
     
     return jsonify(players_data)
 
-@app.route('/player-card/<gameId>/<playerId>', methods=['GET'])
-def get_player_card(gameId, playerId):
-    """
-    Returns a specific player's bingo card based on gameId and playerId.
-    """
-    logging.info(f"GET request received for /player-card/{gameId}/{playerId}.")
-    
-    # Find the player document to get the bingo card ID
-    player_doc = players_collection.find_one({"gameId": gameId, "playerId": playerId})
-    
-    if not player_doc:
-        logging.warning(f"Player not found: {playerId} in game {gameId}")
-        return jsonify({"error": "Player not found."}), 404
-
-    bingo_card_id = player_doc.get("bingo_card_id")
-    
-    if not bingo_card_id:
-        logging.warning(f"Bingo card ID not found for player: {playerId}")
-        return jsonify({"error": "Bingo card not associated with player."}), 404
-
-    # Find the bingo card document using the stored ID
+@app.route('/player-card/<gameId>/<playerId>')
+def fetch_bingo_card(gameId, playerId):
     try:
-        bingo_card_doc = bingo_cards_collection.find_one({"_id": ObjectId(bingo_card_id)}, {"_id": 0})
-        bingo_card_doc['cardId'] = bingo_card_id
+        # It's better to fetch the card by player ID if you don't have the card ID
+        player_doc = players_collection.find_one({"_id": ObjectId(playerId)})
+        if not player_doc:
+            return jsonify({"success": False, "error": "Player not found"}), 404
 
-    except Exception:
-        logging.warning(f"Invalid ObjectId for bingo card ID: {bingo_card_id}")
-        return jsonify({"error": "Invalid bingo card ID."}), 400
+        card_doc = bingo_cards_collection.find_one({"_id": player_doc['cardId']})
 
-    if not bingo_card_doc:
-        logging.warning(f"Bingo card not found for ID: {bingo_card_id}")
-        return jsonify({"error": "Bingo card not found."}), 404
-    
-    logging.info(f"Sending bingo card for player {playerId}: {bingo_card_doc}")
-    
-    return jsonify(bingo_card_doc)
+        if not card_doc:
+            # Handle the case where a player is found but their card isn't
+            logging.error(f"Card not found for player: {playerId}")
+            return jsonify({"success": False, "error": "Card not found"}), 404
+        
+        # Return the card data
+        return jsonify(card_doc), 200
+
+    except InvalidId:
+        logging.warning(f"Invalid player or card ID received: {playerId} / {gameId}")
+        return jsonify({"success": False, "error": "Invalid ID format."}), 400
+
+    except Exception as e:
+        logging.error(f"An unexpected error occurred: {e}")
+        return jsonify({"success": False, "error": "Internal server error"}), 500
 
 @app.route('/create-game', methods=['POST'])
 def create_game():
