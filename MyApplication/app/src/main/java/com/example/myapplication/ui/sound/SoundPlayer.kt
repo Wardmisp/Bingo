@@ -1,7 +1,7 @@
 import android.content.Context
 import android.media.SoundPool
 
-class SoundPlayer(private val context: Context) {
+class SoundPlayer(context: Context) {
 
     private val soundPool: SoundPool = SoundPool.Builder().setMaxStreams(1).build()
     private var soundId: Int = 0
