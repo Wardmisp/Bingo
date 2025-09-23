@@ -75,7 +75,7 @@ class DataViewModel(
                     // Convert the data string to an Int and update your state
                     val number = data.toInt()
                     _nextNumber.value = number
-                    Log.d("SSETESTING", "onEvent: Bingo number received: $number")
+                    Log.d("SSETESTING", "onEvent: Bingo number received: ${nextNumber.value}")
                 } catch (e: NumberFormatException) {
                     Log.e("SSETESTING", "Error parsing number: $data", e)
                 }

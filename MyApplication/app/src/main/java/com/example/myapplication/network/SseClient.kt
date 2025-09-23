@@ -36,7 +36,7 @@ class SseClient(private val listener: SseListener) {
                         return@execute
                     }
 
-                    val reader = BufferedReader(InputStreamReader(response.body!!.byteStream()))
+                    val reader = BufferedReader(InputStreamReader(response.body.byteStream()))
                     var line: String?
                     var event = "message"
                     var data = ""
@@ -44,12 +44,12 @@ class SseClient(private val listener: SseListener) {
                     while (reader.readLine().also { line = it } != null && isConnected) {
                         when {
                             line!!.startsWith("event:") -> {
-                                event = line!!.substring("event:".length).trim()
+                                event = line.substring("event:".length).trim()
                             }
-                            line!!.startsWith("data:") -> {
-                                data = line!!.substring("data:".length).trim()
+                            line.startsWith("data:") -> {
+                                data = line.substring("data:".length).trim()
                             }
-                            line!!.isEmpty() -> { // End of a full event message
+                            line.isEmpty() -> { // End of a full event message
                                 if (data.isNotEmpty()) {
                                     listener.onEvent(event, data)
                                     // Reset for the next message
