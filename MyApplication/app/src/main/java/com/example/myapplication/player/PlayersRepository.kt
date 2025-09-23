@@ -10,7 +10,7 @@ import java.io.IOException
 import androidx.core.content.edit
 
 class PlayersRepository(private val apiService: ApiService,
-                        private val applicationContext: Context
+                        applicationContext: Context
 ) {
     private val sharedPrefs = applicationContext.getSharedPreferences("bingo_prefs", Context.MODE_PRIVATE)
 

@@ -171,7 +171,7 @@ class DataViewModel(
                 is ApiResult.Success -> {
                     val registration = result.data
                     // Save player info using the repository
-                    playersRepository.savePlayerInfo(registration.gameId, registration.playerId!!)
+                    playersRepository.savePlayerInfo(registration.gameId, registration.playerId)
                     // Update ViewModel state
                     _gameId.value = registration.gameId
                     _playerId.value = registration.playerId

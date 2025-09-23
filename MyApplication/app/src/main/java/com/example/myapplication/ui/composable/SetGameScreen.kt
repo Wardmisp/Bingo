@@ -1,5 +1,6 @@
 package com.example.myapplication.ui.screens
 
+import android.util.Log
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -130,8 +131,9 @@ fun SetGameScreen(
 
                 is UiState.Error -> {
                     val errorMessage = (uiState as UiState.Error).message
+                    Log.e("SetGameScreen", "SetGameScreen: $errorMessage", )
                     Text(
-                        text = "Error: the server is waking up. Retry in 30 sec",
+                        text = "Error: the server is waking up. Retry in 30 sec.",
                         color = MaterialTheme.colorScheme.error,
                         modifier = Modifier.padding(16.dp)
                     )
