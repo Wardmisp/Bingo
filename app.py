@@ -274,7 +274,7 @@ def bingo_stream(gameId):
         
         while numbers:
             next_number = numbers.pop(0)
-            yield f"data: {next_number}\n\n"
+            yield f"event: bingo_number\ndata: {next_number}\n\n"
             logging.info(f"SSE request received for /bingo-stream/{gameId}. number: {next_number}")
             time.sleep(7) # Wait for 7 seconds
 
