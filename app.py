@@ -275,7 +275,7 @@ def bingo_stream(gameId):
         while numbers:
             next_number = numbers.pop(0)
             yield f"data: {next_number}\n\n"
+            logging.info(f"SSE request received for /bingo-stream/{gameId}. number: {next_number}")
             time.sleep(7) # Wait for 7 seconds
 
-    # Returns an HTTP response with a text/event-stream content type
     return Response(stream_with_context(generate_numbers()), mimetype='text/event-stream')
