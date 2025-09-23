@@ -46,11 +46,15 @@ fun MainScreen() {
     val viewModel: DataViewModel = viewModel(
         factory = DataViewModelFactory(
             application = application,
-            PlayersRepository(apiService = RetrofitInstance.apiService),
+            PlayersRepository(
+                apiService = RetrofitInstance.apiService,
+                applicationContext = application
+            ),
             bingoCardsRepository = BingoCardsRepository(apiService = RetrofitInstance.apiService)
         )
     )
     val gameStarted by viewModel.gameStarted.collectAsState()
+    val playerId by viewModel.playerId.collectAsState()
 
     // Observe game state and navigate to the in-game screen
     LaunchedEffect(gameStarted) {
@@ -62,30 +66,32 @@ fun MainScreen() {
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         bottomBar = {
-            BottomAppBar(
-                containerColor = MaterialTheme.colorScheme.primaryContainer,
-                contentColor = MaterialTheme.colorScheme.primary
-            ) {
-                val navBackStackEntry by navController.currentBackStackEntryAsState()
-                navBackStackEntry?.destination?.route
-                IconButton(
-                    onClick = { navController.navigate("set_game") },
-                    modifier = Modifier.weight(1f)
+            if(playerId == null) {
+                BottomAppBar(
+                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                    contentColor = MaterialTheme.colorScheme.primary
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.AddCircle,
-                        contentDescription = "Set Game"
-                    )
-                }
+                    val navBackStackEntry by navController.currentBackStackEntryAsState()
+                    navBackStackEntry?.destination?.route
+                    IconButton(
+                        onClick = { navController.navigate("set_game") },
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.AddCircle,
+                            contentDescription = "Set Game"
+                        )
+                    }
 
-                IconButton(
-                    onClick = { navController.navigate("join_game")  },
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Info,
-                        contentDescription = "Join Game"
-                    )
+                    IconButton(
+                        onClick = { navController.navigate("join_game") },
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Info,
+                            contentDescription = "Join Game"
+                        )
+                    }
                 }
             }
         }

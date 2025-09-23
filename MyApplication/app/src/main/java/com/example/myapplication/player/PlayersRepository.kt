@@ -1,4 +1,5 @@
 
+import android.content.Context
 import com.example.myapplication.network.ApiResult
 import com.example.myapplication.network.ApiService
 import com.example.myapplication.player.Player
@@ -6,8 +7,30 @@ import com.example.myapplication.player.PlayerRegistration
 import com.example.myapplication.player.RegistrationResponse
 import retrofit2.Response
 import java.io.IOException
+import androidx.core.content.edit
 
-class PlayersRepository(private val apiService: ApiService) {
+class PlayersRepository(private val apiService: ApiService,
+                        private val applicationContext: Context
+) {
+    private val sharedPrefs = applicationContext.getSharedPreferences("bingo_prefs", Context.MODE_PRIVATE)
+
+    fun savePlayerInfo(gameId: String, playerId: String) {
+        sharedPrefs.edit {
+            putString("gameId", gameId)
+            putString("playerId", playerId)
+            apply()
+        }
+    }
+
+    fun getPlayerInfo(): Pair<String?, String?> {
+        val gameId = sharedPrefs.getString("gameId", null)
+        val playerId = sharedPrefs.getString("playerId", null)
+        return Pair(gameId, playerId)
+    }
+
+    fun clearPlayerInfo() {
+        sharedPrefs.edit { clear() }
+    }
     suspend fun createGame(playerName: String): ApiResult<RegistrationResponse> {
         return try {
             val response: Response<RegistrationResponse> = apiService.createGame(

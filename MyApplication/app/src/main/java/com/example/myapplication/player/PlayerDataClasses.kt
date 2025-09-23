@@ -22,7 +22,6 @@ data class PlayerRegistration(
 data class RegistrationResponse(
     val status: String,
     val message: String,
-    @SerializedName("id")
     val playerId: String,
     val gameId: String
 )

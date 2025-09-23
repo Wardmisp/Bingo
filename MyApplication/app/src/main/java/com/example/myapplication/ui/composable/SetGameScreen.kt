@@ -131,7 +131,7 @@ fun SetGameScreen(
                 is UiState.Error -> {
                     val errorMessage = (uiState as UiState.Error).message
                     Text(
-                        text = "Error: $errorMessage",
+                        text = "Error: the server is waking up. Retry in 30 sec",
                         color = MaterialTheme.colorScheme.error,
                         modifier = Modifier.padding(16.dp)
                     )
@@ -153,14 +153,16 @@ fun SetGameScreen(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            OutlinedTextField(
-                value = playerName,
-                onValueChange = { playerName = it },
-                label = { Text("Add Player Name") },
-                modifier = Modifier.weight(1f),
-                singleLine = true,
-                enabled = !isGameStarted
-            )
+            if(playersCount == 0) {
+                OutlinedTextField(
+                    value = playerName,
+                    onValueChange = { playerName = it },
+                    label = { Text("Add Player Name") },
+                    modifier = Modifier.weight(1f),
+                    singleLine = true,
+                    enabled = !isGameStarted
+                )
+            }
         }
 
         Spacer(modifier = Modifier.height(16.dp))

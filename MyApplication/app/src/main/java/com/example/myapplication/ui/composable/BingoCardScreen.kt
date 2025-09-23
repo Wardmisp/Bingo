@@ -36,15 +36,15 @@ fun BingoCardScreen(
     val uiState by viewModel.uiState.collectAsState()
     val bingoCardState by viewModel.bingoCardState.collectAsState()
     val gameId by viewModel.gameId.collectAsState()
-    val nextNumber by viewModel.nextNumber.collectAsState() // Observe the new state
+    val nextNumber by viewModel.nextNumber.collectAsState()
+    val currentPlayerId by viewModel.playerId.collectAsState()
 
     LaunchedEffect(Unit) {
         val currentState = uiState
         if (currentState is UiState.Success) {
-            val currentPlayer = currentState.players.firstOrNull { it.gameId == gameId }
-            if (currentPlayer != null) {
-                viewModel.fetchBingoCard(currentPlayer.gameId, currentPlayer.playerId)
-                viewModel.connectToBingoStream(currentPlayer.gameId)
+            if (currentPlayerId != null) {
+                gameId?.let { viewModel.fetchBingoCard(it, currentPlayerId!!) }
+                gameId?.let { viewModel.connectToBingoStream(it) }
             }
         }
     }

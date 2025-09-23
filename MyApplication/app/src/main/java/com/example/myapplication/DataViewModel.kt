@@ -40,9 +40,11 @@ class DataViewModel(
     val gameStarted: StateFlow<Boolean> = _gameStarted
 
     private val _nextNumber = MutableStateFlow<Int?>(null)
-
     val nextNumber: StateFlow<Int?> = _nextNumber
 
+    private val _playerId = MutableStateFlow<String?>(null)
+
+    val playerId: StateFlow<String?> = _playerId
     private lateinit var sseClient: SseClient
 
     private var pollingJob: Job? = null
@@ -50,6 +52,11 @@ class DataViewModel(
     private val soundPlayer = SoundPlayer(application.applicationContext)
 
     init {
+
+        val (gameId, playerId) = playersRepository.getPlayerInfo()
+        _gameId.value = gameId
+        _playerId.value = playerId
+
         viewModelScope.launch {
             _gameId.collectLatest { gameId ->
                 pollingJob?.cancel()
@@ -63,6 +70,7 @@ class DataViewModel(
                 }
             }
         }
+
     }
 
     fun connectToBingoStream(gameId: String) {
@@ -104,8 +112,14 @@ class DataViewModel(
     // Ensure you disconnect when the ViewModel is no longer needed
     override fun onCleared() {
         super.onCleared()
+
+        playersRepository.clearPlayerInfo()
+
         soundPlayer.release()
-        sseClient.disconnect()
+
+        if (::sseClient.isInitialized) {
+            sseClient.disconnect()
+        }
     }
 
     private suspend fun fetchPlayers(gameId: String) {
@@ -133,7 +147,12 @@ class DataViewModel(
             _uiState.value = UiState.Loading
             when (val result = playersRepository.createGame(playerName)) {
                 is ApiResult.Success -> {
-                    _gameId.value = result.data.gameId
+                    val registration = result.data
+                    // Save player info using the repository
+                    playersRepository.savePlayerInfo(registration.gameId, registration.playerId)
+                    // Update ViewModel state
+                    _gameId.value = registration.gameId
+                    _playerId.value = registration.playerId
                 }
                 is ApiResult.Error -> {
                     _uiState.value = UiState.Error(result.message)
@@ -150,7 +169,12 @@ class DataViewModel(
             _uiState.value = UiState.Loading
             when (val result = playersRepository.joinGame(playerName, gameId)) {
                 is ApiResult.Success -> {
-                    _gameId.value = result.data.gameId
+                    val registration = result.data
+                    // Save player info using the repository
+                    playersRepository.savePlayerInfo(registration.gameId, registration.playerId!!)
+                    // Update ViewModel state
+                    _gameId.value = registration.gameId
+                    _playerId.value = registration.playerId
                 }
                 is ApiResult.Error -> {
                     _uiState.value = UiState.Error(result.message)

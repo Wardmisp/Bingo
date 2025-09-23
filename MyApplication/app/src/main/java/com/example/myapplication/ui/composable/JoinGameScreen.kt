@@ -48,6 +48,7 @@ fun JoinGameScreen(
     var gameId by remember { mutableStateOf("") }
     val isGameIdValid = gameId.isNotBlank() && gameId.all { it.isDigit() }
     val isPlayerNameValid = playerName.isNotBlank()
+    val playersCount = (uiState as? UiState.Success)?.players?.size ?: 0
 
     Column(
         modifier = modifier
@@ -144,55 +145,69 @@ fun JoinGameScreen(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Game finding UI - these are always visible at the bottom
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            OutlinedTextField(
-                value = gameId,
-                onValueChange = { gameId = it },
-                label = { Text("Enter game ID") },
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                isError = !isGameIdValid && gameId.isNotBlank(),
-                supportingText = {
-                    if (!isGameIdValid && gameId.isNotBlank()) {
-                        Text("Game ID must be a number")
-                    }
-                },
-                singleLine = true
-            )
-        }
-        Spacer(modifier = Modifier.height(16.dp))
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            OutlinedTextField(
-                value = playerName,
-                onValueChange = { playerName = it },
-                label = { Text("Enter your name") },
-                isError = playerName.isBlank() && gameId.isNotBlank(),
-                supportingText = {
-                    if (playerName.isBlank() && gameId.isNotBlank()) {
-                        Text("Name cannot be empty")
-                    }
-                },
-                modifier = Modifier.weight(1f)
-            )
-        }
+        if (playersCount == 0) {
 
-        Spacer(modifier = Modifier.height(16.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                OutlinedTextField(
+                    value = gameId,
+                    onValueChange = { gameId = it },
+                    label = { Text("Enter game ID") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    isError = !isGameIdValid && gameId.isNotBlank(),
+                    supportingText = {
+                        if (!isGameIdValid && gameId.isNotBlank()) {
+                            Text("Game ID must be a number")
+                        }
+                    },
+                    singleLine = true
+                )
+            }
+            Spacer(modifier = Modifier.height(16.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                OutlinedTextField(
+                    value = playerName,
+                    onValueChange = { playerName = it },
+                    label = { Text("Enter your name") },
+                    isError = playerName.isBlank() && gameId.isNotBlank(),
+                    supportingText = {
+                        if (playerName.isBlank() && gameId.isNotBlank()) {
+                            Text("Name cannot be empty")
+                        }
+                    },
+                    modifier = Modifier.weight(1f)
+                )
+            }
 
-        // "Start game" button
-        Button(
-            onClick = { viewModel.joinGame(playerName, gameId) },
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(50.dp),
-            enabled = isPlayerNameValid && isGameIdValid
-        ) {
-            Text("Join game")
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // "Start game" button
+            Button(
+                onClick = { viewModel.joinGame(playerName, gameId) },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(50.dp),
+                enabled = isPlayerNameValid && isGameIdValid
+            ) {
+                Text("Join game")
+            }
+        } else {
+
+            CircularProgressIndicator(modifier = Modifier.padding(16.dp))
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(
+                text = "Waiting for host to start the game...",
+                style = MaterialTheme.typography.headlineSmall,
+                modifier = Modifier.padding(16.dp),
+                textAlign = TextAlign.Center
+            )
+
         }
     }
 }
