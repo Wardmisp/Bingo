@@ -1,11 +1,12 @@
 import os
 from random import randint
 import uuid
-from flask import Flask, request, jsonify, render_template
+from flask import Flask, request, jsonify, render_template, stream_with_context, Response
 import logging
 from pymongo import MongoClient
 from bingo_card_generator import generate_bingo_card
 from bson.objectid import ObjectId
+import time
 
 # Some utils
 def is_game_id_unique(game_id):
@@ -210,7 +211,6 @@ def join_game():
         logging.error(f"Error during player join: {e}")
         return jsonify({"error": "An internal server error occurred."}), 500
 
-
 @app.route('/player-card/<cardId>/<int:number>', methods=['POST'])
 def click_number_on_bingo_card(cardId, number):
     """
@@ -263,3 +263,19 @@ def click_number_on_bingo_card(cardId, number):
     except Exception as e:
         logging.error(f"An error occurred: {e}")
         return jsonify({"success": False, "error": "An internal server error occurred."}), 500
+    
+@app.route('/bingo-stream/<gameId>')
+def bingo_stream(gameId):
+    # This is a simplified example. In a real app, you would
+    # get the next number from a shared state or a database
+    def generate_numbers():
+        # A simple list of numbers to stream
+        numbers = list(range(1, 76))
+        
+        while numbers:
+            next_number = numbers.pop(0)
+            yield f"data: {next_number}\n\n"
+            time.sleep(7) # Wait for 7 seconds
+
+    # Returns an HTTP response with a text/event-stream content type
+    return Response(stream_with_context(generate_numbers()), mimetype='text/event-stream')
