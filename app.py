@@ -139,9 +139,11 @@ def get_player_card(gameId, playerId):
     
     return jsonify(bingo_card_doc)
 
-@app.route('/player-card/cardId', methods=['GET'])
+@app.route('/player-card/<cardId>', methods=['GET'])
 def get_card(cardId):
     try:
+        logging.info(f"receive cardId for get_card: {cardId}")
+        # The line below correctly finds the card using the ID from the URL
         bingo_card_doc = bingo_cards_collection.find_one({"_id": ObjectId(cardId)}, {"_id": 0})
 
     except Exception:
@@ -154,7 +156,10 @@ def get_card(cardId):
     
     logging.info(f"Sending bingo card for card {cardId}: {bingo_card_doc}")
     
-    return jsonify(bingo_card_doc)
+    # You might want to include the cardId in the response for the client
+    bingo_card_doc['cardId'] = cardId 
+    
+    return jsonify(bingo_card_doc), 200
 
 @app.route('/create-game', methods=['POST'])
 def create_game():
