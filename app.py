@@ -139,6 +139,23 @@ def get_player_card(gameId, playerId):
     
     return jsonify(bingo_card_doc)
 
+@app.route('/player-card/cardId', methods=['GET'])
+def get_card(cardId):
+    try:
+        bingo_card_doc = bingo_cards_collection.find_one({"_id": ObjectId(cardId)}, {"_id": 0})
+
+    except Exception:
+        logging.warning(f"Invalid ObjectId for bingo card ID: {cardId}")
+        return jsonify({"error": "Invalid bingo card ID."}), 400
+
+    if not bingo_card_doc:
+        logging.warning(f"Bingo card not found for ID: {cardId}")
+        return jsonify({"error": "Bingo card not found."}), 404
+    
+    logging.info(f"Sending bingo card for card {cardId}: {bingo_card_doc}")
+    
+    return jsonify(bingo_card_doc)
+
 @app.route('/create-game', methods=['POST'])
 def create_game():
     """
@@ -298,9 +315,10 @@ def click_number_on_bingo_card(cardId, number):
         logging.info(f"Successfully updated card {cardId}: {result.matched_count} document matched, {result.modified_count} modified.")
 
         player_id = card_doc['playerId']
+        logging.info(f"player_id in clicknumberonbingo card is {player_id}")
         player_doc = players_collection.find_one({"playerId": player_id})
         
-        # Check for a win (any line, column, or diagonal of -1s)
+        # Check for a win (any line)
         if _is_winner(updated_card_data):
             # If a win is detected, get the winner's name and send the event
             winner_name = player_doc['name'] if player_doc else "Unknown Player"
@@ -312,7 +330,7 @@ def click_number_on_bingo_card(cardId, number):
 
     except Exception as e:
         logging.error(f"An error occurred: {e}")
-        return jsonify({"success": False, "error": "An internal server error occurred."}), 500
+        return jsonify(False), 500
     
 @app.route('/bingo-stream/<gameId>')
 def bingo_stream(gameId):
