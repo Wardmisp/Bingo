@@ -66,22 +66,31 @@ streams = {}
 # The actual number sequence for the game
 game_sequences = {} # {gameId: [1, 2, 3, ...]}
 
-# Start a background thread to generate and send numbers
 def number_generator_thread():
-    # This thread runs forever and pushes numbers to the queues
     while True:
-        # Iterate over all active games
+        # Check if there are any active games to stream to
+        if not game_sequences:
+            logging.debug("SSE GENERATOR: No active game sequences to process. Sleeping.")
+        
         for game_id, sequence in game_sequences.items():
+            active_clients = len(streams.get(game_id, []))
+
             if sequence:
                 next_number = sequence.pop(0)
                 message = f"event: bingo_number\ndata: {next_number}\n\n"
-                logging.info(f"Generated number: {next_number} for game {game_id}")
                 
-                # Push the number to all connected clients for this game
+                # LOG: Generation confirmation
+                logging.info(
+                    f"SSE GENERATOR: Generated number {next_number} for game {game_id}. "
+                    f"Pushing to {active_clients} active client queue(s)."
+                )
+                
                 for q in streams.get(game_id, []):
                     q.put(message)
+            else:
+                 logging.debug(f"SSE GENERATOR: Sequence for game {game_id} is exhausted.")
             
-        time.sleep(7) # This sleep only blocks the single generator thread
+        time.sleep(7) 
 
 # Start the thread when the server launches
 threading.Thread(target=number_generator_thread, daemon=True).start()
@@ -364,26 +373,38 @@ def click_number_on_bingo_card(cardId, number):
         logging.error(f"An error occurred: {e}")
         return jsonify(False), 500
     
+# In your Flask route definition
+
 @app.route('/bingo-stream/<gameId>')
 def bingo_stream(gameId):
+    # LOG: Connection attempt
+    logging.info(f"SSE ENDPOINT: Client attempting to connect to stream for game {gameId}")
+
     client_queue = queue.Queue()
     
-    # Add the new client's queue to the global streams dictionary
+    # Initialization logic for the game sequence
     if gameId not in streams:
         streams[gameId] = []
-        # Initialize the number sequence for this game if it's the first listener
-        game_sequences[gameId] = list(range(1, 76)) 
+        # Ensure your game_sequences is properly initialized here if it's the first connection
+        if gameId not in game_sequences:
+            game_sequences[gameId] = list(range(1, 76)) 
+        logging.info(f"SSE ENDPOINT: Initialized stream structures for game {gameId}.")
         
     streams[gameId].append(client_queue)
+    # LOG: Connection established
+    logging.info(f"SSE ENDPOINT: Connection established for game {gameId}. Total active streams: {len(streams[gameId])}")
 
     def generate_events():
         try:
             while True:
-                # Wait until the generator thread puts a message in the queue
-                yield client_queue.get()
+                message = client_queue.get()
+                # LOG: Message retrieval confirmation (Shows the message is leaving the queue)
+                logging.debug(f"SSE YIELD: Yielding message for client in game {gameId}.")
+                yield message
         except GeneratorExit:
+            # LOG: Disconnection confirmation
+            logging.info(f"SSE CLEANUP: Client disconnected from stream for game {gameId}.")
             # Clean up when the client disconnects
             streams[gameId].remove(client_queue)
-            logging.info(f"Client disconnected from stream for game {gameId}")
-
+            
     return Response(stream_with_context(generate_events()), mimetype='text/event-stream')
