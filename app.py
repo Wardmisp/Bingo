@@ -403,7 +403,9 @@ def bingo_stream(gameId):
                 # This line is where the stream waits, which is correct and non-blocking to the server.
                 yield client_queue.get() 
         except GeneratorExit:
-            # ... (Cleanup code)
+            # Clean up when the client disconnects
+            streams[gameId].remove(client_queue)
+            logging.info(f"Client disconnected from stream for game {gameId}")
             
     # 3. RETURN RESPONSE IMMEDIATELY
     return Response(stream_with_context(generate_events()), mimetype='text/event-stream')
