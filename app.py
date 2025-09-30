@@ -399,16 +399,24 @@ def bingo_stream(gameId):
     def generate_events():
         logging.info("SSE DEBUG: enter generate events")
         try:
+        # 2. RUNTIME: The main SSE loop
             while True:
-                message = client_queue.get()
-                # LOG: Message retrieval confirmation (Shows the message is leaving the queue)
-                logging.debug(f"SSE YIELD: Yielding message for client in game {gameId}.")
-                yield message
-        except GeneratorExit:
-            # LOG: Disconnection confirmation
-            logging.info(f"SSE CLEANUP: Client disconnected from stream for game {gameId}.")
-            # Clean up when the client disconnects
-            streams[gameId].remove(client_queue)
-            
-    # 3. RETURN RESPONSE IMMEDIATELY
-    return Response(stream_with_context(generate_events()), mimetype='text/event-stream')
+                try:
+                    # Catch Gunicorn's aggressive shutdown on disconnect
+                    message = client_queue.get()
+                    yield message
+                except SystemExit:
+                # This is the expected and correct way to handle
+                # Gunicorn's 'handle_abort' logic interrupting a blocked call.
+                # Break the loop to enter the 'finally' block for cleanup.
+                    break 
+                
+        finally:
+            # 3. CLEANUP: Resource release logic (runs regardless of exit path)
+            try:
+                # Safely remove the client_queue from your global streams dictionary
+                streams[gameId].remove(client_queue)
+                logging.info(f"Client disconnected gracefully from stream for game {gameId}")
+            except Exception:
+            # Be defensive in cleanup
+                pass 
