@@ -377,34 +377,33 @@ def click_number_on_bingo_card(cardId, number):
 
 @app.route('/bingo-stream/<gameId>')
 def bingo_stream(gameId):
-    # LOG: Connection attempt
+    
+    # 1. LOG IMMEDIATELY
     logging.info(f"SSE ENDPOINT: Client attempting to connect to stream for game {gameId}")
 
+    # 2. PERFORM ONLY FAST, IN-MEMORY OPERATIONS
     client_queue = queue.Queue()
     
-    # Initialization logic for the game sequence
+    # Initialization logic for the game sequence must be FAST
     if gameId not in streams:
         streams[gameId] = []
-        # Ensure your game_sequences is properly initialized here if it's the first connection
         if gameId not in game_sequences:
+            # ONLY PERFORM FAST, IN-MEMORY INITIALIZATION HERE
             game_sequences[gameId] = list(range(1, 76)) 
+            
         logging.info(f"SSE ENDPOINT: Initialized stream structures for game {gameId}.")
         
     streams[gameId].append(client_queue)
-    # LOG: Connection established
     logging.info(f"SSE ENDPOINT: Connection established for game {gameId}. Total active streams: {len(streams[gameId])}")
 
     def generate_events():
+        # ... (Your existing generator code)
         try:
             while True:
-                message = client_queue.get()
-                # LOG: Message retrieval confirmation (Shows the message is leaving the queue)
-                logging.debug(f"SSE YIELD: Yielding message for client in game {gameId}.")
-                yield message
+                # This line is where the stream waits, which is correct and non-blocking to the server.
+                yield client_queue.get() 
         except GeneratorExit:
-            # LOG: Disconnection confirmation
-            logging.info(f"SSE CLEANUP: Client disconnected from stream for game {gameId}.")
-            # Clean up when the client disconnects
-            streams[gameId].remove(client_queue)
+            # ... (Cleanup code)
             
+    # 3. RETURN RESPONSE IMMEDIATELY
     return Response(stream_with_context(generate_events()), mimetype='text/event-stream')
