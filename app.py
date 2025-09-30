@@ -1,5 +1,6 @@
 import os
 from random import randint
+import threading
 import uuid
 from flask import Flask, request, jsonify, render_template, stream_with_context, Response
 import logging
@@ -8,6 +9,10 @@ from bingo_card_generator import generate_bingo_card
 from bson.objectid import ObjectId
 import time
 from concurrent.futures import ThreadPoolExecutor
+import threading
+import queue
+import time
+import logging
 
 # Some utils
 def is_game_id_unique(game_id):
@@ -56,6 +61,30 @@ def _send_game_over_event(game_id, winner_name):
             message = f"event: game_over\ndata: Game over! {winner_name} won. Try again!\n\n"
         
         player_queue.put(message.encode('utf-8'))
+
+streams = {} 
+# The actual number sequence for the game
+game_sequences = {} # {gameId: [1, 2, 3, ...]}
+
+# Start a background thread to generate and send numbers
+def number_generator_thread():
+    # This thread runs forever and pushes numbers to the queues
+    while True:
+        # Iterate over all active games
+        for game_id, sequence in game_sequences.items():
+            if sequence:
+                next_number = sequence.pop(0)
+                message = f"event: bingo_number\ndata: {next_number}\n\n"
+                logging.info(f"Generated number: {next_number} for game {game_id}")
+                
+                # Push the number to all connected clients for this game
+                for q in streams.get(game_id, []):
+                    q.put(message)
+            
+        time.sleep(7) # This sleep only blocks the single generator thread
+
+# Start the thread when the server launches
+threading.Thread(target=number_generator_thread, daemon=True).start()
 
 # Load the environment variable from Render
 mongo_uri = os.getenv("MONGO_URI")
@@ -337,16 +366,24 @@ def click_number_on_bingo_card(cardId, number):
     
 @app.route('/bingo-stream/<gameId>')
 def bingo_stream(gameId):
-    # This is a simplified example. In a real app, you would
-    # get the next number from a shared state or a database
-    def generate_numbers():
-        # A simple list of numbers to stream
-        numbers = list(range(1, 76))
+    client_queue = queue.Queue()
+    
+    # Add the new client's queue to the global streams dictionary
+    if gameId not in streams:
+        streams[gameId] = []
+        # Initialize the number sequence for this game if it's the first listener
+        game_sequences[gameId] = list(range(1, 76)) 
         
-        while numbers:
-            next_number = numbers.pop(0)
-            yield f"event: bingo_number\ndata: {next_number}\n\n"
-            logging.info(f"SSE request received for /bingo-stream/{gameId}. number: {next_number}")
-            time.sleep(7) # Wait for 7 seconds
+    streams[gameId].append(client_queue)
 
-    return Response(stream_with_context(generate_numbers()), mimetype='text/event-stream')
+    def generate_events():
+        try:
+            while True:
+                # Wait until the generator thread puts a message in the queue
+                yield client_queue.get()
+        except GeneratorExit:
+            # Clean up when the client disconnects
+            streams[gameId].remove(client_queue)
+            logging.info(f"Client disconnected from stream for game {gameId}")
+
+    return Response(stream_with_context(generate_events()), mimetype='text/event-stream')
