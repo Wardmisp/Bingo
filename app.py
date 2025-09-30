@@ -397,15 +397,18 @@ def bingo_stream(gameId):
     logging.info(f"SSE ENDPOINT: Connection established for game {gameId}. Total active streams: {len(streams[gameId])}")
 
     def generate_events():
-        # ... (Your existing generator code)
+        logging.info("SSE DEBUG: enter generate events")
         try:
             while True:
-                # This line is where the stream waits, which is correct and non-blocking to the server.
-                yield client_queue.get() 
+                message = client_queue.get()
+                # LOG: Message retrieval confirmation (Shows the message is leaving the queue)
+                logging.debug(f"SSE YIELD: Yielding message for client in game {gameId}.")
+                yield message
         except GeneratorExit:
+            # LOG: Disconnection confirmation
+            logging.info(f"SSE CLEANUP: Client disconnected from stream for game {gameId}.")
             # Clean up when the client disconnects
             streams[gameId].remove(client_queue)
-            logging.info(f"Client disconnected from stream for game {gameId}")
             
     # 3. RETURN RESPONSE IMMEDIATELY
     return Response(stream_with_context(generate_events()), mimetype='text/event-stream')
