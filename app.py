@@ -420,4 +420,5 @@ def bingo_stream(gameId):
             except Exception:
             # Be defensive in cleanup
                 pass 
-        return Response(generate_events(), mimetype='text/event-stream')
+        logging.info
+    return Response(generate_events(), mimetype='text/event-stream')
