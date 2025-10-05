@@ -421,4 +421,5 @@ def bingo_stream(gameId):
             # Be defensive in cleanup
                 pass 
         logging.info
-    return Response(generate_events(), mimetype='text/event-stream')
+    return Response("data: 18"
+, mimetype='text/event-stream')
