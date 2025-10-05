@@ -404,11 +404,10 @@ def bingo_stream(gameId):
                 try:
                     # Catch Gunicorn's aggressive shutdown on disconnect
                     message = client_queue.get()
+                    logging.warning(f"GENERATE EVENTS yielded message : {message}")
                     yield message
                 except SystemExit:
-                # This is the expected and correct way to handle
-                # Gunicorn's 'handle_abort' logic interrupting a blocked call.
-                # Break the loop to enter the 'finally' block for cleanup.
+                    logging.exception(f"generate_events issue : {SystemExit}")
                     break 
                 
         finally:
