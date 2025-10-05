@@ -67,22 +67,22 @@ streams = {}
 game_sequences = {} # {gameId: [1, 2, 3, ...]}
 
 def number_generator_thread():
-    logging.debug("SSEDEBUG : ENTER THE NUMBER GEN THREAD")
+    logging.warning("SSEDEBUG : ENTER THE NUMBER GEN THREAD")
     while True:
         # Check if there are any active games to stream to
         if not game_sequences:
-            logging.debug("SSE GENERATOR: No active game sequences to process. Sleeping.")
+            logging.warning("SSE GENERATOR: No active game sequences to process. Sleeping.")
         
         for game_id, sequence in game_sequences.items():
             active_clients = len(streams.get(game_id, []))
-            logging.debug("ENTER FOR IN THREAD")
+            logging.warning("ENTER FOR IN THREAD")
             if sequence:
                 next_number = sequence.pop(0)
-                logging.debug(f"event: bingo_number\ndata: {next_number}\n\n")
+                logging.warning(f"event: bingo_number\ndata: {next_number}\n\n")
                 message = f"event: bingo_number\ndata: {next_number}\n\n"
                 
                 # LOG: Generation confirmation
-                logging.info(
+                logging.warning(
                     f"SSE GENERATOR: Generated number {next_number} for game {game_id}. "
                     f"Pushing to {active_clients} active client queue(s)."
                 )
@@ -322,8 +322,6 @@ def click_number_on_bingo_card(cardId, number):
 
     try:
         # Find the document by its ObjectId
-        logging.warning(f"click_number_on_bingo_card: enter try")
-
         card_doc = bingo_cards_collection.find_one({"_id": ObjectId(cardId)})
         
         if not card_doc:
@@ -333,7 +331,6 @@ def click_number_on_bingo_card(cardId, number):
         # Iterate through the 2D array to find and update the number
         card_updated = False
         updated_card_data = card_doc['card']
-        logging.warning(f"click_number_on_bingo_card: updated_card_data ={updated_card_data}")
         for i in range(len(updated_card_data)):
             for j in range(len(updated_card_data[i])):
                 if updated_card_data[i][j] == number:
