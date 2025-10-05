@@ -13,7 +13,6 @@ import threading
 import queue
 import time
 import logging
-import gevent
 
 # Some utils
 def is_game_id_unique(game_id):
@@ -96,8 +95,14 @@ def number_generator_thread():
             
         time.sleep(7) 
 
+# Start the thread when the server launches
+threading.Thread(target=number_generator_thread, daemon=True).start()
+
 # Load the environment variable from Render
 mongo_uri = os.getenv("MONGO_URI")
+
+# To manage threads 
+executor = ThreadPoolExecutor(max_workers=8)
 
 app = Flask(__name__)
 
@@ -356,10 +361,11 @@ def click_number_on_bingo_card(cardId, number):
         
         # Check for a win (any line)
         if _is_winner(updated_card_data):
-            winner_name = player_doc['name']
-            game_id = player_doc['gameId']
-            # Use gevent.spawn to run the function in the background
-            gevent.spawn(_send_game_over_event, game_id, winner_name)
+            # If a win is detected, get the winner's name and send the event
+            winner_name = player_doc['name'] if player_doc else "Unknown Player"
+            game_id = player_doc['gameId'] if player_doc else None
+            if game_id:
+                executor.submit(_send_game_over_event, game_id, winner_name)
 
         return jsonify(True), 200
 
