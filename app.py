@@ -63,13 +63,13 @@ def _send_game_over_event(game_id, winner_name):
         player_queue.put(message.encode('utf-8'))
 
 streams = {} 
-# The actual number sequence for the game
-game_sequences = {} # {gameId: [1, 2, 3, ...]}
+game_sequences = {}
 
 def number_generator_thread():
     logging.warning("SSEDEBUG : ENTER THE NUMBER GEN THREAD")
     while True:
         # Check if there are any active games to stream to
+        logging.warning(f"FROM THREAD game sequ : {game_sequences}")
         if not game_sequences:
             logging.warning("SSE GENERATOR: No active game sequences to process. Sleeping.")
         
@@ -378,7 +378,7 @@ def click_number_on_bingo_card(cardId, number):
 def bingo_stream(gameId):
     
     # 1. LOG IMMEDIATELY
-    logging.info(f"SSE ENDPOINT: Client attempting to connect to stream for game {gameId}")
+    logging.warning(f"SSE ENDPOINT: Client attempting to connect to stream for game {gameId}")
 
     # 2. PERFORM ONLY FAST, IN-MEMORY OPERATIONS
     client_queue = queue.Queue()
@@ -389,14 +389,15 @@ def bingo_stream(gameId):
         if gameId not in game_sequences:
             # ONLY PERFORM FAST, IN-MEMORY INITIALIZATION HERE
             game_sequences[gameId] = list(range(1, 76)) 
+            logging.warning(f"FROM THREAD game sequ : {game_sequences}")
             
-        logging.info(f"SSE ENDPOINT: Initialized stream structures for game {gameId}.")
+        logging.warning(f"SSE ENDPOINT: Initialized stream structures for game {gameId}.")
         
     streams[gameId].append(client_queue)
-    logging.info(f"SSE ENDPOINT: Connection established for game {gameId}. Total active streams: {len(streams[gameId])}")
+    logging.warning(f"SSE ENDPOINT: Connection established for game {gameId}. Total active streams: {len(streams[gameId])}")
 
     def generate_events():
-        logging.info("SSE DEBUG: enter generate events")
+        logging.warning("SSE DEBUG: enter generate events")
         try:
         # 2. RUNTIME: The main SSE loop
             while True:
@@ -419,5 +420,4 @@ def bingo_stream(gameId):
             except Exception:
             # Be defensive in cleanup
                 pass 
-        logging.info
     return Response(generate_events(), mimetype='text/event-stream')
