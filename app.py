@@ -73,7 +73,7 @@ def number_generator_thread():
         if not game_sequences:
             logging.warning("SSE GENERATOR: No active game sequences to process. Sleeping.")
         
-        for game_id, sequence in game_sequences.items():
+        for game_id, sequence in list(game_sequences.items()):
             active_clients = len(streams.get(game_id, []))
             logging.warning("ENTER FOR IN THREAD")
             if sequence:
