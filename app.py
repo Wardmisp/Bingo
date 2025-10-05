@@ -67,6 +67,7 @@ streams = {}
 game_sequences = {} # {gameId: [1, 2, 3, ...]}
 
 def number_generator_thread():
+    logging.debug("SSEDEBUG : ENTER THE NUMBER GEN THREAD")
     while True:
         # Check if there are any active games to stream to
         if not game_sequences:
@@ -74,9 +75,10 @@ def number_generator_thread():
         
         for game_id, sequence in game_sequences.items():
             active_clients = len(streams.get(game_id, []))
-
+            logging.debug("ENTER FOR IN THREAD")
             if sequence:
                 next_number = sequence.pop(0)
+                logging.debug(f"event: bingo_number\ndata: {next_number}\n\n")
                 message = f"event: bingo_number\ndata: {next_number}\n\n"
                 
                 # LOG: Generation confirmation
@@ -421,5 +423,4 @@ def bingo_stream(gameId):
             # Be defensive in cleanup
                 pass 
         logging.info
-    return Response("data: 18"
-, mimetype='text/event-stream')
+    return Response(generate_events(), mimetype='text/event-stream')
