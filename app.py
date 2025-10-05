@@ -69,7 +69,8 @@ def number_generator_thread():
     logging.warning("SSEDEBUG : ENTER THE NUMBER GEN THREAD")
     while True:
         # Check if there are any active games to stream to
-        logging.warning(f"FROM THREAD game sequ : {game_sequences}")
+        logging.warning(f"PID[{os.getpid()}] FROM THREAD game sequ : {game_sequences}")
+
         if not game_sequences:
             logging.warning("SSE GENERATOR: No active game sequences to process. Sleeping.")
         
@@ -397,7 +398,7 @@ def bingo_stream(gameId):
     logging.warning(f"SSE ENDPOINT: Connection established for game {gameId}. Total active streams: {len(streams[gameId])}")
 
     def generate_events():
-        logging.warning("SSE DEBUG: enter generate events")
+        logging.warning(f"PID[{os.getpid()}] SSE ENDPOINT: Connection established...")
         try:
         # 2. RUNTIME: The main SSE loop
             while True:
