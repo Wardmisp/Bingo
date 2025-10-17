@@ -104,7 +104,7 @@ def start_number_generator():
     thread.start()
     logging.warning("Number generator thread started successfully!")
 
-start_number_generator
+start_number_generator()
 
 # Load the environment variable from Render
 mongo_uri = os.getenv("MONGO_URI")
