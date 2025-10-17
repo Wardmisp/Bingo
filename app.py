@@ -99,8 +99,12 @@ def number_generator_thread():
         logging.warning("--- Thread iteration end (sleeping 7s) ---")
         time.sleep(7)
 
-# Démarrage du thread
-threading.Thread(target=number_generator_thread, daemon=True).start()
+def start_number_generator():
+    thread = threading.Thread(target=number_generator_thread, daemon=True)
+    thread.start()
+    logging.warning("Number generator thread started successfully!")
+
+start_number_generator
 
 # Load the environment variable from Render
 mongo_uri = os.getenv("MONGO_URI")
