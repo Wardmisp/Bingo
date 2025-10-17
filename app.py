@@ -13,6 +13,7 @@ import threading
 import queue
 import time
 import logging
+from threading import Lock
 
 # Some utils
 def is_game_id_unique(game_id):
@@ -65,37 +66,26 @@ def _send_game_over_event(game_id, winner_name):
 streams = {} 
 game_sequences = {}
 
+# Thread de génération des nombres
 def number_generator_thread():
-    logging.warning("SSEDEBUG : ENTER THE NUMBER GEN THREAD")
+    logging.warning("SSEDEBUG: Number generator thread started.")
     while True:
-        # Check if there are any active games to stream to
-        logging.warning(f"PID[{os.getpid()}] FROM THREAD game sequ : {game_sequences}")
+        with streams_lock:
+            logging.warning(f"Active games: {list(game_sequences.keys())}")
+            for game_id, sequence in list(game_sequences.items()):
+                if sequence:
+                    next_number = sequence.pop(0)
+                    message = f"event: bingo_number\ndata: {next_number}\n\n"
+                    for q in streams.get(game_id, []):
+                        try:
+                            q.put(message.encode('utf-8'))
+                        except Exception as e:
+                            logging.error(f"Error pushing to queue: {e}")
+                else:
+                    logging.debug(f"Sequence exhausted for game {game_id}.")
+        time.sleep(7)
 
-        if not game_sequences:
-            logging.warning("SSE GENERATOR: No active game sequences to process. Sleeping.")
-        
-        for game_id, sequence in list(game_sequences.items()):
-            active_clients = len(streams.get(game_id, []))
-            logging.warning("ENTER FOR IN THREAD")
-            if sequence:
-                next_number = sequence.pop(0)
-                logging.warning(f"event: bingo_number\ndata: {next_number}\n\n")
-                message = f"event: bingo_number\ndata: {next_number}\n\n"
-                
-                # LOG: Generation confirmation
-                logging.warning(
-                    f"SSE GENERATOR: Generated number {next_number} for game {game_id}. "
-                    f"Pushing to {active_clients} active client queue(s)."
-                )
-                
-                for q in streams.get(game_id, []):
-                    q.put(message)
-            else:
-                 logging.debug(f"SSE GENERATOR: Sequence for game {game_id} is exhausted.")
-            
-        time.sleep(7) 
-
-# Start the thread when the server launches
+# Démarrage du thread
 threading.Thread(target=number_generator_thread, daemon=True).start()
 
 # Load the environment variable from Render
@@ -373,51 +363,46 @@ def click_number_on_bingo_card(cardId, number):
         logging.error(f"An error occurred: {e}")
         return jsonify(False), 500
     
-# In your Flask route definition
+streams = {}
+game_sequences = {}
+streams_lock = Lock() 
 
 @app.route('/bingo-stream/<gameId>')
 def bingo_stream(gameId):
-    
-    # 1. LOG IMMEDIATELY
-    logging.warning(f"SSE ENDPOINT: Client attempting to connect to stream for game {gameId}")
-
-    # 2. PERFORM ONLY FAST, IN-MEMORY OPERATIONS
     client_queue = queue.Queue()
-    
-    # Initialization logic for the game sequence must be FAST
-    if gameId not in streams:
-        streams[gameId] = []
-        if gameId not in game_sequences:
-            # ONLY PERFORM FAST, IN-MEMORY INITIALIZATION HERE
-            game_sequences[gameId] = list(range(1, 76)) 
-            logging.warning(f"FROM THREAD game sequ : {game_sequences}")
-            
-        logging.warning(f"SSE ENDPOINT: Initialized stream structures for game {gameId}.")
-        
-    streams[gameId].append(client_queue)
-    logging.warning(f"SSE ENDPOINT: Connection established for game {gameId}. Total active streams: {len(streams[gameId])}")
+
+    with streams_lock:
+        if gameId not in streams:
+            streams[gameId] = []
+            if gameId not in game_sequences:
+                game_sequences[gameId] = list(range(1, 76))
+                logging.warning(f"Initialized new game sequence for {gameId}.")
+
+        streams[gameId].append(client_queue)
+        logging.warning(f"New client connected to game {gameId}. Total clients: {len(streams[gameId])}")
 
     def generate_events():
-        logging.warning(f"PID[{os.getpid()}] SSE ENDPOINT: Connection established...")
         try:
-        # 2. RUNTIME: The main SSE loop
             while True:
                 try:
-                    # Catch Gunicorn's aggressive shutdown on disconnect
-                    message = client_queue.get()
-                    logging.warning(f"GENERATE EVENTS yielded message : {message}")
+                    # Timeout de 1 seconde pour éviter le blocage
+                    message = client_queue.get(timeout=1)
                     yield message
+                except queue.Empty:
+                    # Envoie un keep-alive si la file est vide
+                    yield "event: keepalive\ndata: waiting\n\n"
                 except SystemExit:
-                    logging.exception(f"generate_events issue : {SystemExit}")
-                    break 
-                
+                    logging.warning("Client disconnected (SystemExit).")
+                    break
         finally:
-            # 3. CLEANUP: Resource release logic (runs regardless of exit path)
-            try:
-                # Safely remove the client_queue from your global streams dictionary
-                streams[gameId].remove(client_queue)
-                logging.info(f"Client disconnected gracefully from stream for game {gameId}")
-            except Exception:
-            # Be defensive in cleanup
-                pass 
+            with streams_lock:
+                if gameId in streams and client_queue in streams[gameId]:
+                    streams[gameId].remove(client_queue)
+                    logging.warning(f"Client disconnected from game {gameId}. Remaining clients: {len(streams[gameId])}")
+                    if not streams[gameId]:
+                        del streams[gameId]
+                        if gameId in game_sequences:
+                            del game_sequences[gameId]
+                            logging.warning(f"Game {gameId} removed (no more clients).")
+
     return Response(generate_events(), mimetype='text/event-stream')
