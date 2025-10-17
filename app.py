@@ -70,20 +70,35 @@ def number_generator_thread():
     logging.warning("SSEDEBUG: Number generator thread started.")
     while True:
         with streams_lock:
+            logging.warning("--- Thread iteration start ---")
+            logging.warning(f"Active games in sequences: {list(game_sequences.keys())}")
+            logging.warning(f"Active games in streams: {list(streams.keys())}")
+
             for game_id in list(game_sequences.keys()):
+                logging.warning(f"Processing game: {game_id}")
+                logging.warning(f"Clients connected to game {game_id}: {len(streams.get(game_id, []))}")
+                logging.warning(f"Remaining numbers for game {game_id}: {len(game_sequences.get(game_id, []))}")
+
                 if game_id in streams and streams[game_id]:
                     if game_sequences[game_id]:
                         next_number = game_sequences[game_id].pop(0)
                         message = f"event: bingo_number\ndata: {next_number}\n\n"
-                        for q in streams[game_id]:
+                        logging.warning(f"Preparing to send number {next_number} to {len(streams[game_id])} clients in game {game_id}.")
+
+                        for i, q in enumerate(streams[game_id]):
                             try:
                                 q.put(message.encode('utf-8'))
+                                logging.warning(f"Sent number {next_number} to client {i} in game {game_id}.")
                             except Exception as e:
-                                logging.error(f"Error pushing to queue: {e}")
-                        logging.warning(f"Sent number {next_number} to {len(streams[game_id])} clients in game {game_id}.")
+                                logging.error(f"Error pushing to client {i} queue in game {game_id}: {e}")
+                    else:
+                        logging.warning(f"No numbers left for game {game_id}.")
                 else:
-                    logging.debug(f"No active clients for game {game_id}.")
+                    logging.warning(f"No active clients for game {game_id}.")
+
+        logging.warning("--- Thread iteration end (sleeping 7s) ---")
         time.sleep(7)
+
 # Démarrage du thread
 threading.Thread(target=number_generator_thread, daemon=True).start()
 
@@ -373,8 +388,11 @@ def bingo_stream(gameId):
     with streams_lock:
         if gameId not in streams:
             streams[gameId] = []
+            logging.warning(f"Initialized streams for game {gameId}.")
         if gameId not in game_sequences:
             game_sequences[gameId] = list(range(1, 76))
+            logging.warning(f"Initialized sequence for game {gameId}: {game_sequences[gameId][:5]}...")
+
         streams[gameId].append(client_queue)
         logging.warning(f"New client connected to game {gameId}. Total clients: {len(streams[gameId])}")
 
@@ -382,11 +400,11 @@ def bingo_stream(gameId):
         try:
             while True:
                 try:
-                    # Timeout de 1 seconde pour éviter le blocage
                     message = client_queue.get(timeout=1)
+                    logging.debug(f"Client received message: {message}")
                     yield message
                 except queue.Empty:
-                    # Envoie un keep-alive si la file est vide
+                    logging.debug("Client queue empty, yielding keepalive.")
                     yield "event: keepalive\ndata: waiting\n\n"
                 except SystemExit:
                     logging.warning("Client disconnected (SystemExit).")
