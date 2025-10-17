@@ -63,8 +63,10 @@ def _send_game_over_event(game_id, winner_name):
         
         player_queue.put(message.encode('utf-8'))
 
-streams = {} 
+# Global structures to manage streams and game sequences
+streams = {}
 game_sequences = {}
+streams_lock = threading.Lock() 
 
 def number_generator_thread():
     logging.warning("SSEDEBUG: Number generator thread started.")
@@ -380,10 +382,6 @@ def click_number_on_bingo_card(cardId, number):
     except Exception as e:
         logging.error(f"An error occurred: {e}")
         return jsonify(False), 500
-    
-streams = {}
-game_sequences = {}
-streams_lock = Lock() 
 
 @app.route('/bingo-stream/<gameId>')
 def bingo_stream(gameId):
