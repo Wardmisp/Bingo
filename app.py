@@ -14,6 +14,7 @@ import queue
 import time
 import logging
 from threading import Lock
+import redis
 
 # Some utils
 def is_game_id_unique(game_id):
@@ -68,38 +69,23 @@ streams = {}
 game_sequences = {}
 streams_lock = threading.Lock() 
 
+redis_client = redis.Redis.from_url(os.getenv("REDIS_URL"))
+
 def number_generator_thread():
-    logging.warning("SSEDEBUG: Number generator thread started.")
     while True:
-        with streams_lock:
-            logging.warning("--- Thread iteration start ---")
-            logging.warning(f"Active games in sequences: {list(game_sequences.keys())}")
-            logging.warning(f"Active games in streams: {list(streams.keys())}")
-
-            for game_id in list(game_sequences.keys()):
-                logging.warning(f"Processing game: {game_id}")
-                logging.warning(f"Clients connected to game {game_id}: {len(streams.get(game_id, []))}")
-                logging.warning(f"Remaining numbers for game {game_id}: {len(game_sequences.get(game_id, []))}")
-
-                if game_id in streams and streams[game_id]:
-                    if game_sequences[game_id]:
-                        next_number = game_sequences[game_id].pop(0)
-                        message = f"event: bingo_number\ndata: {next_number}\n\n"
-                        logging.warning(f"Preparing to send number {next_number} to {len(streams[game_id])} clients in game {game_id}.")
-
-                        for i, q in enumerate(streams[game_id]):
-                            try:
-                                q.put(message.encode('utf-8'))
-                                logging.warning(f"Sent number {next_number} to client {i} in game {game_id}.")
-                            except Exception as e:
-                                logging.error(f"Error pushing to client {i} queue in game {game_id}: {e}")
-                    else:
-                        logging.warning(f"No numbers left for game {game_id}.")
-                else:
-                    logging.warning(f"No active clients for game {game_id}.")
-
-        logging.warning("--- Thread iteration end (sleeping 7s) ---")
+        # Récupère tous les jeux actifs
+        active_games = redis_client.smembers("active_games")
+        for game_id in active_games:
+            game_id = game_id.decode('utf-8')
+            sequence_key = f"sequence:{game_id}"
+            if redis_client.llen(sequence_key) > 0:
+                next_number = redis_client.lpop(sequence_key).decode('utf-8')
+                # Envoie le nombre à tous les clients du jeu
+                clients = redis_client.smembers(f"clients:{game_id}")
+                for client_id in clients:
+                    redis_client.publish(f"queue:{client_id}", f"event: bingo_number\ndata: {next_number}\n\n")
         time.sleep(7)
+
 
 def start_number_generator():
     thread = threading.Thread(target=number_generator_thread, daemon=True)
@@ -385,41 +371,28 @@ def click_number_on_bingo_card(cardId, number):
 
 @app.route('/bingo-stream/<gameId>')
 def bingo_stream(gameId):
-    client_queue = queue.Queue()
+    # Crée une file unique pour ce client
+    client_id = f"{gameId}:{str(uuid.uuid4())}"
+    redis_client.sadd(f"clients:{gameId}", client_id)
+    redis_client.sadd("active_games", gameId)
 
-    with streams_lock:
-        if gameId not in streams:
-            streams[gameId] = []
-            logging.warning(f"Initialized streams for game {gameId}.")
-        if gameId not in game_sequences:
-            game_sequences[gameId] = list(range(1, 76))
-            logging.warning(f"Initialized sequence for game {gameId}: {game_sequences[gameId][:5]}...")
+    # Initialise la séquence si vide
+    if redis_client.llen(f"sequence:{gameId}") == 0:
+        redis_client.rpush(f"sequence:{gameId}", *[str(i) for i in range(1, 76)])
 
-        streams[gameId].append(client_queue)
-        logging.warning(f"New client connected to game {gameId}. Total clients: {len(streams[gameId])}")
+    # Écoute les messages pour ce client
+    pubsub = redis_client.pubsub()
+    pubsub.subscribe(f"queue:{client_id}")
 
     def generate_events():
         try:
-            while True:
-                try:
-                    message = client_queue.get(timeout=1)
-                    logging.debug(f"Client received message: {message}")
-                    yield message
-                except queue.Empty:
-                    logging.debug("Client queue empty, yielding keepalive.")
-                    yield "event: keepalive\ndata: waiting\n\n"
-                except SystemExit:
-                    logging.warning("Client disconnected (SystemExit).")
-                    break
+            for message in pubsub.listen():
+                if message['type'] == 'message':
+                    yield message['data'].decode('utf-8')
         finally:
-            with streams_lock:
-                if gameId in streams and client_queue in streams[gameId]:
-                    streams[gameId].remove(client_queue)
-                    logging.warning(f"Client disconnected from game {gameId}. Remaining clients: {len(streams[gameId])}")
-                    if not streams[gameId]:
-                        del streams[gameId]
-                        if gameId in game_sequences:
-                            del game_sequences[gameId]
-                            logging.warning(f"Game {gameId} removed (no more clients).")
+            # Nettoie quand le client se déconnecte
+            redis_client.srem(f"clients:{gameId}", client_id)
+            pubsub.unsubscribe(f"queue:{client_id}")
+            pubsub.close()
 
     return Response(generate_events(), mimetype='text/event-stream')
