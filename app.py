@@ -66,25 +66,24 @@ def _send_game_over_event(game_id, winner_name):
 streams = {} 
 game_sequences = {}
 
-# Thread de génération des nombres
 def number_generator_thread():
     logging.warning("SSEDEBUG: Number generator thread started.")
     while True:
         with streams_lock:
-            logging.warning(f"Active games: {list(game_sequences.keys())}")
-            for game_id, sequence in list(game_sequences.items()):
-                if sequence:
-                    next_number = sequence.pop(0)
-                    message = f"event: bingo_number\ndata: {next_number}\n\n"
-                    for q in streams.get(game_id, []):
-                        try:
-                            q.put(message.encode('utf-8'))
-                        except Exception as e:
-                            logging.error(f"Error pushing to queue: {e}")
+            for game_id in list(game_sequences.keys()):
+                if game_id in streams and streams[game_id]:
+                    if game_sequences[game_id]:
+                        next_number = game_sequences[game_id].pop(0)
+                        message = f"event: bingo_number\ndata: {next_number}\n\n"
+                        for q in streams[game_id]:
+                            try:
+                                q.put(message.encode('utf-8'))
+                            except Exception as e:
+                                logging.error(f"Error pushing to queue: {e}")
+                        logging.warning(f"Sent number {next_number} to {len(streams[game_id])} clients in game {game_id}.")
                 else:
-                    logging.debug(f"Sequence exhausted for game {game_id}.")
+                    logging.debug(f"No active clients for game {game_id}.")
         time.sleep(7)
-
 # Démarrage du thread
 threading.Thread(target=number_generator_thread, daemon=True).start()
 
@@ -374,10 +373,8 @@ def bingo_stream(gameId):
     with streams_lock:
         if gameId not in streams:
             streams[gameId] = []
-            if gameId not in game_sequences:
-                game_sequences[gameId] = list(range(1, 76))
-                logging.warning(f"Initialized new game sequence for {gameId}.")
-
+        if gameId not in game_sequences:
+            game_sequences[gameId] = list(range(1, 76))
         streams[gameId].append(client_queue)
         logging.warning(f"New client connected to game {gameId}. Total clients: {len(streams[gameId])}")
 
