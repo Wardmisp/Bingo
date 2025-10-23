@@ -75,11 +75,11 @@ def number_generator_thread():
     print("[THREAD] Démarrage du thread de génération du nombre 28.")
     while True:
         with streams_lock:
-            for game_id, queues in streams.items():
+            for game_id, queues in list(streams.items()):
                 message = "event: number\ndata: 28\n\n"
                 for q in queues:
                     try:
-                        q.put(message.encode('utf-8'))
+                        q.put(message)
                     except Exception as e:
                         print(f"[THREAD] Erreur lors de l'envoi du 28: {e}")
         time.sleep(7)
@@ -365,7 +365,7 @@ def click_number_on_bingo_card(cardId, number):
         logging.error(f"An error occurred: {e}")
         return jsonify(False), 500
 
-@app.route('/bingo-stream/<gameId>')
+@app.route('/number-stream/<gameId>')
 def number_stream(gameId):
     print(f"[SSE] Nouvelle connexion pour le jeu {gameId}")
     client_queue = queue.Queue()
@@ -375,22 +375,20 @@ def number_stream(gameId):
         streams[gameId].append(client_queue)
 
     def generate_events():
-        last_activity = time.time()
         try:
             while True:
                 try:
-                    message = client_queue.get(timeout=1)
+                    message = client_queue.get(timeout=20)
                     yield message
-                    last_activity = time.time()
                 except queue.Empty:
-                    if time.time() - last_activity > 15:
-                        keepalive_msg = "event: keepalive\ndata: {}\n\n"
-                        yield keepalive_msg
+                    # Envoie un keepalive si aucun message n'arrive depuis 15 secondes
+                    yield "event: keepalive\ndata: {}\n\n"
         finally:
             with streams_lock:
                 if gameId in streams and client_queue in streams[gameId]:
                     streams[gameId].remove(client_queue)
                     if not streams[gameId]:
                         del streams[gameId]
+                    print(f"[SSE] Client déconnecté. Clients restants pour {gameId}: {len(streams.get(gameId, []))}")
 
     return Response(generate_events(), mimetype='text/event-stream')
