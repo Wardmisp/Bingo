@@ -363,9 +363,9 @@ threading.Thread(target=number_generator, daemon=True).start()
 def bingo_stream(gameId):
     def generate():
         while True:
-            print(f"Envoi de 28 à {gameId}")  # Log pour vérifier l'envoi
+            # Envoie le nombre 28 toutes les 7 secondes
             yield "event: bingo_number\ndata: 28\n\n"
-            gevent.sleep(7)  # Pause non-bloquante
+            time.sleep(7)  # Pause bloquante, mais gérée par Gunicorn en mode synchrone
 
     return Response(generate(), mimetype='text/event-stream')
 
