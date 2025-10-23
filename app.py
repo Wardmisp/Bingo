@@ -1,20 +1,18 @@
 import os
 from random import randint
-import threading
 import uuid
 from flask import Flask, request, jsonify, render_template, stream_with_context, Response
 import logging
 from pymongo import MongoClient
 from bingo_card_generator import generate_bingo_card
 from bson.objectid import ObjectId
-import time
 from concurrent.futures import ThreadPoolExecutor
-import threading
-import queue
 import time
 import logging
 from threading import Lock
 import redis
+import gevent
+from gevent.queue import Queue
 
 # Some utils
 def is_game_id_unique(game_id):
@@ -344,51 +342,36 @@ def click_number_on_bingo_card(cardId, number):
 
 
 streams = {}
-streams_lock = threading.Lock()
 
-def number_generator_thread():
-    print("[THREAD] Démarrage du thread de génération du nombre 28.")
+def number_generator():
     while True:
-        with streams_lock:
-            for game_id, queues in list(streams.items()):
-                message = "event: bingo_number\ndata: 28\n\n"
-                for q in queues:
-                    try:
-                        q.put_nowait(message)
-                    except Exception as e:
-                        print(f"[THREAD] Erreur lors de l'envoi du 28: {e}")
-        time.sleep(7)
-
-def start_number_generator():
-    thread = threading.Thread(target=number_generator_thread, daemon=True)
-    thread.start()
-    print("Thread envoyé du nombre 28 démarré !")
-
-start_number_generator()
+        # Envoie le nombre 28 à tous les clients connectés
+        for game_id, client_queues in list(streams.items()):
+            message = "event: bingo_number\ndata: 28\n\n"
+            for client_queue in client_queues:
+                client_queue.put(message)
+        gevent.sleep(7)  # Pause de 7 secondes
 
 @app.route('/bingo-stream/<gameId>')
 def bingo_stream(gameId):
-    print(f"[SSE] Nouvelle connexion pour le jeu {gameId}")
-    client_queue = queue.Queue()
-    with streams_lock:
+    def generate():
+        client_queue = Queue()
         if gameId not in streams:
             streams[gameId] = []
         streams[gameId].append(client_queue)
-
-    def generate_events():
         try:
             while True:
-                try:
-                    message = client_queue.get(timeout=10)  # Timeout pour éviter le blocage
-                    yield message
-                except queue.Empty:
-                    yield "event: keepalive\ndata: {}\n\n"  # Keepalive pour maintenir la connexion
+                message = client_queue.get()  # Bloquant, attend un message
+                yield message
         finally:
-            with streams_lock:
-                if gameId in streams and client_queue in streams[gameId]:
-                    streams[gameId].remove(client_queue)
-                    if not streams[gameId]:
-                        del streams[gameId]
-                    print(f"[SSE] Client déconnecté. Clients restants pour {gameId}: {len(streams.get(gameId, []))}")
+            if gameId in streams:
+                streams[gameId].remove(client_queue)
+                if not streams[gameId]:
+                    del streams[gameId]
 
-    return Response(generate_events(), mimetype='text/event-stream')
+    return Response(generate(), mimetype='text/event-stream')
+
+if __name__ == '__main__':
+    # Démarre le générateur de nombres dans un greenlet
+    gevent.spawn(number_generator)
+    app.run(debug=True, threaded=True)
