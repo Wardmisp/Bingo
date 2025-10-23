@@ -65,10 +65,7 @@ def _send_game_over_event(game_id, winner_name):
         player_queue.put(message.encode('utf-8'))
 
 # Global structures to manage streams and game sequences
-streams = {}
 game_sequences = {}
-streams_lock = threading.Lock() 
-
 # Load environment variables
 redis_client = redis.Redis.from_url(os.getenv("REDIS_URL"))
 mongo_uri = os.getenv("MONGO_URI")
@@ -346,6 +343,9 @@ def click_number_on_bingo_card(cardId, number):
         return jsonify(False), 500
 
 
+streams = {}
+streams_lock = threading.Lock()
+
 def number_generator_thread():
     print("[THREAD] Démarrage du thread de génération du nombre 28.")
     while True:
@@ -378,8 +378,11 @@ def bingo_stream(gameId):
     def generate_events():
         try:
             while True:
-                message = client_queue.get()  # Bloquant, attend un message
-                yield message
+                try:
+                    message = client_queue.get(timeout=10)  # Timeout pour éviter le blocage
+                    yield message
+                except queue.Empty:
+                    yield "event: keepalive\ndata: {}\n\n"  # Keepalive pour maintenir la connexion
         finally:
             with streams_lock:
                 if gameId in streams and client_queue in streams[gameId]:
