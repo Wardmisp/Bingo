@@ -1,3 +1,4 @@
+import itertools
 import os
 from random import randint
 import uuid
@@ -361,21 +362,12 @@ threading.Thread(target=number_generator, daemon=True).start()
 @app.route('/bingo-stream/<gameId>')
 def bingo_stream(gameId):
     def generate():
-        try:
-            while True:
-                # Utilise yield from pour attendre les messages du thread
-                message = yield
-                yield message
-        except GeneratorExit:
-            if generate in active_streams:
-                active_streams.remove(generate)
+        while True:
+            print(f"Envoi de 28 à {gameId}")  # Log pour vérifier l'envoi
+            yield "event: bingo_number\ndata: 28\n\n"
+            gevent.sleep(7)  # Pause non-bloquante
 
-    # Ajoute le générateur à la liste des streams actifs
-    stream = generate()
-    stream.send(None)  # Initialise le générateur
-    active_streams.append(stream)
-
-    return Response(stream, mimetype='text/event-stream')
+    return Response(generate(), mimetype='text/event-stream')
 
 if __name__ == '__main__':
-    app.run(debug=True, threaded=True)
+    app.run(debug=True)
