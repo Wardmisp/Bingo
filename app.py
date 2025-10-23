@@ -13,6 +13,9 @@ from threading import Lock
 import redis
 import gevent
 from gevent.queue import Queue
+import threading
+import time
+import queue
 
 # Some utils
 def is_game_id_unique(game_id):
@@ -345,33 +348,38 @@ streams = {}
 
 def number_generator():
     while True:
-        # Envoie le nombre 28 à tous les clients connectés
+        message = "event: bingo_number\ndata: 28\n\n"
         for game_id, client_queues in list(streams.items()):
-            message = "event: bingo_number\ndata: 28\n\n"
-            for client_queue in client_queues:
-                client_queue.put(message)
-        gevent.sleep(7)  # Pause de 7 secondes
+            for q in client_queues:
+                try:
+                    q.put_nowait(message)
+                except:
+                    pass
+        time.sleep(7)
+
+# Démarre le thread une seule fois
+threading.Thread(target=number_generator, daemon=True).start()
 
 @app.route('/bingo-stream/<gameId>')
 def bingo_stream(gameId):
     def generate():
-        client_queue = Queue()
+        q = queue.Queue()
         if gameId not in streams:
             streams[gameId] = []
-        streams[gameId].append(client_queue)
+        streams[gameId].append(q)
         try:
             while True:
-                message = client_queue.get()  # Bloquant, attend un message
-                yield message
+                try:
+                    # Attend un message avec un timeout court
+                    message = q.get(timeout=1)
+                    yield message
+                except queue.Empty:
+                    # Envoie un commentaire vide pour maintenir la connexion
+                    yield ": keepalive\n\n"
         finally:
-            if gameId in streams:
-                streams[gameId].remove(client_queue)
+            if gameId in streams and q in streams[gameId]:
+                streams[gameId].remove(q)
                 if not streams[gameId]:
                     del streams[gameId]
 
     return Response(generate(), mimetype='text/event-stream')
-
-if __name__ == '__main__':
-    # Démarre le générateur de nombres dans un greenlet
-    gevent.spawn(number_generator)
-    app.run(debug=True, threaded=True)
