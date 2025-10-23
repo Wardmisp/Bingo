@@ -345,29 +345,46 @@ def click_number_on_bingo_card(cardId, number):
         return jsonify(False), 500
 
 
-active_streams = []
+sse_clients = {}
 
-def number_generator():
-    for number in itertools.cycle([28]):
+# Thread pour envoyer le nombre 28 toutes les 7 secondes
+def bingo_number_sender():
+    while True:
+        print("Envoi de 28 à tous les clients...")
+        for game_id, client_queues in list(sse_clients.items()):
+            message = "event: bingo_number\ndata: 28\n\n"
+            for q in client_queues:
+                try:
+                    q.put_nowait(message)
+                except:
+                    pass
         time.sleep(7)
-        for stream in list(active_streams):
-            try:
-                stream.send(f"event: bingo_number\ndata: {number}\n\n")
-            except Exception:
-                active_streams.remove(stream)
 
-# Démarre le thread une seule fois
-threading.Thread(target=number_generator, daemon=True).start()
+# Démarre le thread au lancement de l'app
+threading.Thread(target=bingo_number_sender, daemon=True).start()
 
 @app.route('/bingo-stream/<gameId>')
 def bingo_stream(gameId):
     def generate():
-        while True:
-            # Envoie le nombre 28 toutes les 7 secondes
-            yield "event: bingo_number\ndata: 28\n\n"
-            time.sleep(7)  # Pause bloquante, mais gérée par Gunicorn en mode synchrone
+        q = queue.Queue()
+        if gameId not in sse_clients:
+            sse_clients[gameId] = []
+        sse_clients[gameId].append(q)
+        try:
+            while True:
+                try:
+                    # Attend un message avec un timeout court
+                    message = q.get(timeout=1)
+                    yield message
+                except queue.Empty:
+                    # Envoie un commentaire vide pour maintenir la connexion
+                    yield ": keepalive\n\n"
+        finally:
+            if gameId in sse_clients and q in sse_clients[gameId]:
+                sse_clients[gameId].remove(q)
+                if not sse_clients[gameId]:
+                    del sse_clients[gameId]
 
     return Response(generate(), mimetype='text/event-stream')
-
 if __name__ == '__main__':
     app.run(debug=True)
