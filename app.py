@@ -344,18 +344,16 @@ def click_number_on_bingo_card(cardId, number):
         return jsonify(False), 500
 
 
-streams = {}
+active_streams = []
 
 def number_generator():
-    while True:
-        message = "event: bingo_number\ndata: 28\n\n"
-        for game_id, client_queues in list(streams.items()):
-            for q in client_queues:
-                try:
-                    q.put_nowait(message)
-                except:
-                    pass
+    for number in itertools.cycle([28]):
         time.sleep(7)
+        for stream in list(active_streams):
+            try:
+                stream.send(f"event: bingo_number\ndata: {number}\n\n")
+            except Exception:
+                active_streams.remove(stream)
 
 # Démarre le thread une seule fois
 threading.Thread(target=number_generator, daemon=True).start()
@@ -363,23 +361,21 @@ threading.Thread(target=number_generator, daemon=True).start()
 @app.route('/bingo-stream/<gameId>')
 def bingo_stream(gameId):
     def generate():
-        q = queue.Queue()
-        if gameId not in streams:
-            streams[gameId] = []
-        streams[gameId].append(q)
         try:
             while True:
-                try:
-                    # Attend un message avec un timeout court
-                    message = q.get(timeout=1)
-                    yield message
-                except queue.Empty:
-                    # Envoie un commentaire vide pour maintenir la connexion
-                    yield ": keepalive\n\n"
-        finally:
-            if gameId in streams and q in streams[gameId]:
-                streams[gameId].remove(q)
-                if not streams[gameId]:
-                    del streams[gameId]
+                # Utilise yield from pour attendre les messages du thread
+                message = yield
+                yield message
+        except GeneratorExit:
+            if generate in active_streams:
+                active_streams.remove(generate)
 
-    return Response(generate(), mimetype='text/event-stream')
+    # Ajoute le générateur à la liste des streams actifs
+    stream = generate()
+    stream.send(None)  # Initialise le générateur
+    active_streams.append(stream)
+
+    return Response(stream, mimetype='text/event-stream')
+
+if __name__ == '__main__':
+    app.run(debug=True, threaded=True)
