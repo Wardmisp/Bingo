@@ -72,30 +72,24 @@ streams_lock = threading.Lock()
 redis_client = redis.Redis.from_url(os.getenv("REDIS_URL"))
 
 def number_generator_thread():
+    print("[THREAD] Démarrage du thread de génération du nombre 28.")
     while True:
-        # Récupère tous les jeux actifs
-        active_games = redis_client.smembers("active_games")
-        for game_id in active_games:
-            game_id = game_id.decode('utf-8')
-            sequence_key = f"sequence:{game_id}"
-            if redis_client.llen(sequence_key) > 0:
-                next_number = redis_client.lpop(sequence_key).decode('utf-8')
-                logging.warning(f"[THREAD] Envoi du nombre {next_number} à {len(clients)} clients.")
-                # Publie le nombre à tous les clients du jeu
-                clients = redis_client.smembers(f"clients:{game_id}")
-                for client_id in clients:
-                    redis_client.publish(f"channel:{client_id}", f"event: bingo_number\ndata: {next_number}\n\n")
+        with streams_lock:
+            for game_id, queues in streams.items():
+                message = "event: number\ndata: 28\n\n"
+                for q in queues:
+                    try:
+                        q.put(message.encode('utf-8'))
+                    except Exception as e:
+                        print(f"[THREAD] Erreur lors de l'envoi du 28: {e}")
         time.sleep(7)
-
-
 
 def start_number_generator():
     thread = threading.Thread(target=number_generator_thread, daemon=True)
     thread.start()
-    logging.warning("Number generator thread started successfully!")
+    print("Thread envoyé du nombre 28 démarré !")
 
 start_number_generator()
-
 # Load the environment variable from Render
 mongo_uri = os.getenv("MONGO_URI")
 
@@ -372,28 +366,31 @@ def click_number_on_bingo_card(cardId, number):
         return jsonify(False), 500
 
 @app.route('/bingo-stream/<gameId>')
-def bingo_stream(gameId):
-    # Crée un canal unique pour ce client
-    client_id = f"{gameId}:{str(uuid.uuid4())}"
-    redis_client.sadd(f"clients:{gameId}", client_id)
-    redis_client.sadd("active_games", gameId)
-
-    # Initialise la séquence si vide
-    if redis_client.llen(f"sequence:{gameId}") == 0:
-        redis_client.rpush(f"sequence:{gameId}", *[str(i) for i in range(1, 76)])
-
-    # Abonne-toi au canal du client
-    pubsub = redis_client.pubsub()
-    pubsub.subscribe(f"channel:{client_id}")
+def number_stream(gameId):
+    print(f"[SSE] Nouvelle connexion pour le jeu {gameId}")
+    client_queue = queue.Queue()
+    with streams_lock:
+        if gameId not in streams:
+            streams[gameId] = []
+        streams[gameId].append(client_queue)
 
     def generate_events():
+        last_activity = time.time()
         try:
-            for message in pubsub.listen():
-                if message['type'] == 'message':
-                    yield message['data'].decode('utf-8')
+            while True:
+                try:
+                    message = client_queue.get(timeout=1)
+                    yield message
+                    last_activity = time.time()
+                except queue.Empty:
+                    if time.time() - last_activity > 15:
+                        keepalive_msg = "event: keepalive\ndata: {}\n\n"
+                        yield keepalive_msg
         finally:
-            redis_client.srem(f"clients:{gameId}", client_id)
-            pubsub.unsubscribe(f"channel:{client_id}")
-            pubsub.close()
+            with streams_lock:
+                if gameId in streams and client_queue in streams[gameId]:
+                    streams[gameId].remove(client_queue)
+                    if not streams[gameId]:
+                        del streams[gameId]
 
     return Response(generate_events(), mimetype='text/event-stream')
