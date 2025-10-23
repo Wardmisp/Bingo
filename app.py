@@ -69,28 +69,8 @@ streams = {}
 game_sequences = {}
 streams_lock = threading.Lock() 
 
+# Load environment variables
 redis_client = redis.Redis.from_url(os.getenv("REDIS_URL"))
-
-def number_generator_thread():
-    print("[THREAD] Démarrage du thread de génération du nombre 28.")
-    while True:
-        with streams_lock:
-            for game_id, queues in list(streams.items()):
-                message = "event: number\ndata: 28\n\n"
-                for q in queues:
-                    try:
-                        q.put(message)
-                    except Exception as e:
-                        print(f"[THREAD] Erreur lors de l'envoi du 28: {e}")
-        time.sleep(7)
-
-def start_number_generator():
-    thread = threading.Thread(target=number_generator_thread, daemon=True)
-    thread.start()
-    print("Thread envoyé du nombre 28 démarré !")
-
-start_number_generator()
-# Load the environment variable from Render
 mongo_uri = os.getenv("MONGO_URI")
 
 # To manage threads 
@@ -365,8 +345,29 @@ def click_number_on_bingo_card(cardId, number):
         logging.error(f"An error occurred: {e}")
         return jsonify(False), 500
 
-@app.route('/number-stream/<gameId>')
-def number_stream(gameId):
+
+def number_generator_thread():
+    print("[THREAD] Démarrage du thread de génération du nombre 28.")
+    while True:
+        with streams_lock:
+            for game_id, queues in list(streams.items()):
+                message = "event: bingo_number\ndata: 28\n\n"
+                for q in queues:
+                    try:
+                        q.put_nowait(message)
+                    except Exception as e:
+                        print(f"[THREAD] Erreur lors de l'envoi du 28: {e}")
+        time.sleep(7)
+
+def start_number_generator():
+    thread = threading.Thread(target=number_generator_thread, daemon=True)
+    thread.start()
+    print("Thread envoyé du nombre 28 démarré !")
+
+start_number_generator()
+
+@app.route('/bingo-stream/<gameId>')
+def bingo_stream(gameId):
     print(f"[SSE] Nouvelle connexion pour le jeu {gameId}")
     client_queue = queue.Queue()
     with streams_lock:
@@ -377,12 +378,8 @@ def number_stream(gameId):
     def generate_events():
         try:
             while True:
-                try:
-                    message = client_queue.get(timeout=20)
-                    yield message
-                except queue.Empty:
-                    # Envoie un keepalive si aucun message n'arrive depuis 15 secondes
-                    yield "event: keepalive\ndata: {}\n\n"
+                message = client_queue.get()  # Bloquant, attend un message
+                yield message
         finally:
             with streams_lock:
                 if gameId in streams and client_queue in streams[gameId]:
