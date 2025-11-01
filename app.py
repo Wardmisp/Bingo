@@ -352,19 +352,20 @@ def bingo_number_sender():
     while True:
         print("Envoi de 28 à tous les clients...")
         for game_id, client_queues in list(sse_clients.items()):
-            print(f"Sending number 28 to game {game_id} clients.")
+            print("Sending number 28 to game clients.")
             message = "event: bingo_number\ndata: 28\n\n"
             for q in client_queues:
-                print(f"Putting message to queue for game {game_id}.")
+                print("Putting message to queue for game.")
                 try:
                     q.put_nowait(message)
-                    print(f"Message put to queue for queue {q}.")
+                    print("Message put to queue for queue.")
                 except:
                     pass
         time.sleep(7)
 
-# Démarre le thread au lancement de l'app
-threading.Thread(target=bingo_number_sender, daemon=True).start()
+bingo_thread = threading.Thread(target=bingo_number_sender, daemon=True)
+bingo_thread.start()
+print("Thread démarré avec l'ID: ", bingo_thread.ident)
 
 @app.route('/bingo-stream/<gameId>')
 def bingo_stream(gameId):
