@@ -351,12 +351,30 @@ r = redis.from_url(os.environ['REDIS_URL'])
 r.set('key', 'redis-py')
 print(r.get('key').decode())
 
+BINGO_NUMBERS_KEY = "bingo:numbers"
+
+def initialize_bingo_numbers():
+    """Initialise la liste des nombres de 1 à 25 dans Redis."""
+    if not r.exists(BINGO_NUMBERS_KEY):
+        r.sadd(BINGO_NUMBERS_KEY, *list(range(1, 26)))
+        logger.info("Liste des nombres de bingo initialisée (1-25).")
+
 def bingo_number_sender():
-    logger.info("Thread bingo_number_sender démarré !")
-    while True:
-        logger.info("Envoi de 28 à tous les clients via Redis...")
-        r.publish("bingo_channel", "event: bingo_number\ndata: 28\n\n")
+    logger.info("Thread bingo_number_sender démarré avec Redis !")
+    while r.scard(BINGO_NUMBERS_KEY) > 0:  # Boucle jusqu'à ce que tous les nombres soient tirés
+        # Tire un nombre aléatoire et le supprime de la liste
+        number = r.srandmember(BINGO_NUMBERS_KEY)
+        r.srem(BINGO_NUMBERS_KEY, number)
+        logger.info(f"Nombre tiré : {number}")
+
+        # Envoie le nombre aux clients
+        r.publish("bingo_channel", f"event: bingo_number\ndata: {number}\n\n")
         time.sleep(7)
+
+    logger.info("Tous les nombres ont été tirés. Arrêt des tirages.")
+
+# Initialise la liste des nombres au démarrage
+initialize_bingo_numbers()
 
 # Démarre le thread
 threading.Thread(target=bingo_number_sender, daemon=True).start()
