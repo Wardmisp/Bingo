@@ -386,6 +386,8 @@ def bingo_stream(gameId):
     pubsub = r.pubsub()
     pubsub.subscribe("bingo_channel")
     logger.info(f"Client {gameId} abonné au canal Redis.")
+    #reset here will cause problem in the future, need the owner to be the trigger of the reset
+    reset_bingo()
 
     def generate():
         for message in pubsub.listen():
@@ -394,3 +396,11 @@ def bingo_stream(gameId):
                 yield message["data"]
 
     return Response(generate(), mimetype='text/event-stream')
+
+
+# A ETUDIER : utile ?
+# @app.route('/reset-bingo')
+def reset_bingo():
+    r.delete(BINGO_NUMBERS_KEY)
+    initialize_bingo_numbers()
+    logger.info("Liste des nombres réinitialisée !")
