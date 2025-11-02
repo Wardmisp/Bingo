@@ -354,26 +354,27 @@ print(r.get('key').decode())
 BINGO_NUMBERS_KEY = "bingo:numbers"
 
 def initialize_bingo_numbers():
-    """Initialise la liste des nombres de 1 à 25 dans Redis."""
     if not r.exists(BINGO_NUMBERS_KEY):
-        r.sadd(BINGO_NUMBERS_KEY, *list(range(1, 26)))
+        r.sadd(BINGO_NUMBERS_KEY, *[str(i) for i in range(1, 26)])  # Stocke les nombres comme chaînes
         logger.info("Liste des nombres de bingo initialisée (1-25).")
 
 def bingo_number_sender():
     logger.info("Thread bingo_number_sender démarré avec Redis !")
-    while r.scard(BINGO_NUMBERS_KEY) > 0:  # Boucle jusqu'à ce que tous les nombres soient tirés
-        # Tire un nombre aléatoire et le supprime de la liste
-        number = r.srandmember(BINGO_NUMBERS_KEY)
-        r.srem(BINGO_NUMBERS_KEY, number)
-        logger.info(f"Nombre tiré : {number}")
+    while r.scard(BINGO_NUMBERS_KEY) > 0:
+        # Récupère et décode le nombre
+        number_bytes = r.srandmember(BINGO_NUMBERS_KEY)
+        number = number_bytes.decode('utf-8')  # Décode en chaîne
+        r.srem(BINGO_NUMBERS_KEY, number_bytes)  # Supprime le byte original
 
-        # Envoie le nombre aux clients
+        logger.info(f"Nombre tiré : {number}")  # Affiche le nombre décodé
+
+        # Envoie le nombre aux clients (déjà décodé)
         r.publish("bingo_channel", f"event: bingo_number\ndata: {number}\n\n")
         time.sleep(7)
 
     logger.info("Tous les nombres ont été tirés. Arrêt des tirages.")
 
-# Initialise la liste des nombres au démarrage
+# Initialise la liste des nombres
 initialize_bingo_numbers()
 
 # Démarre le thread
