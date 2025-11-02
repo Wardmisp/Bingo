@@ -383,6 +383,7 @@ def bingo_stream(gameId):
                 except queue.Empty:
                     # Envoie un commentaire vide pour maintenir la connexion
                     yield ": keepalive\n\n"
+                    print("Sent keepalive to client.")
         finally:
             if gameId in sse_clients and q in sse_clients[gameId]:
                 sse_clients[gameId].remove(q)
