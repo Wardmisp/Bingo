@@ -12,12 +12,10 @@ import time
 import logging
 from threading import Lock
 import redis
-import gevent
-from gevent.queue import Queue
 import threading
 import time
 import queue
-
+import logging
 # Some utils
 def is_game_id_unique(game_id):
     """Checks if a game ID already exists in the players collection."""
@@ -344,50 +342,71 @@ def click_number_on_bingo_card(cardId, number):
         logging.error(f"An error occurred: {e}")
         return jsonify(False), 500
 
-
+# Configure logging
+logger = logging.getLogger(__name__)
+# Structure partagée pour les clients SSE
 sse_clients = {}
+sse_lock = threading.Lock()
 
-# Thread pour envoyer le nombre 28 toutes les 7 secondes
 def bingo_number_sender():
+    logger.info("Thread bingo_number_sender démarré !")
     while True:
-        print("Envoi de 28 à tous les clients...")
-        for game_id, client_queues in list(sse_clients.items()):
-            print("Sending number 28 to game clients.")
-            message = "event: bingo_number\ndata: 28\n\n"
-            for q in client_queues:
-                print("Putting message to queue for game.")
-                try:
-                    q.put_nowait(message)
-                    print("Message put to queue for queue.")
-                except:
-                    pass
+        logger.info("\n--- Nouvelle itération du thread (toutes les 7 secondes) ---")
+        with sse_lock:
+            logger.info(f"Contenu actuel de sse_clients: {sse_clients}")
+            for game_id, client_queues in list(sse_clients.items()):
+                logger.info(f"Trouvé {len(client_queues)} clients pour le jeu {game_id}")
+                message = "event: bingo_number\ndata: 28\n\n"
+                for q in client_queues:
+                    logger.info(f"Tentative d'ajout du message à la file {id(q)}")
+                    try:
+                        q.put_nowait(message)
+                        logger.info(f"Message ajouté avec succès à la file {id(q)}")
+                    except Exception as e:
+                        logger.error(f"Échec de l'ajout à la file {id(q)}: {e}")
         time.sleep(7)
 
+# Démarrage du thread (un seul thread pour toute l'application)
 bingo_thread = threading.Thread(target=bingo_number_sender, daemon=True)
 bingo_thread.start()
-print("Thread démarré avec l'ID: ", bingo_thread.ident)
+logger.info(f"Thread démarré avec l'ID: {bingo_thread.ident}")
 
 @app.route('/bingo-stream/<gameId>')
 def bingo_stream(gameId):
     def generate():
         q = queue.Queue()
-        if gameId not in sse_clients:
-            sse_clients[gameId] = []
-        sse_clients[gameId].append(q)
+        logger.info(f"\nNouveau client connecté au jeu {gameId}, file {id(q)} créée.")
+
+        # Ajout de la file à sse_clients (synchronisé)
+        with sse_lock:
+            if gameId not in sse_clients:
+                sse_clients[gameId] = []
+            sse_clients[gameId].append(q)
+            logger.info(f"File {id(q)} ajoutée à sse_clients[{gameId}]. Clients actuels: {len(sse_clients[gameId])}")
+            logger.info(f"Contenu de sse_clients après ajout: {sse_clients}")
+
         try:
             while True:
                 try:
-                    # Attend un message avec un timeout court
                     message = q.get(timeout=1)
+                    logger.info(f"Message récupéré de la file {id(q)}: {message.strip()}")
                     yield message
                 except queue.Empty:
-                    # Envoie un commentaire vide pour maintenir la connexion
                     yield ": keepalive\n\n"
-                    print("Sent keepalive to client.")
+                    logger.info(f"Keepalive envoyé pour la file {id(q)} (aucune donnée en attente)")
         finally:
-            if gameId in sse_clients and q in sse_clients[gameId]:
-                sse_clients[gameId].remove(q)
-                if not sse_clients[gameId]:
-                    del sse_clients[gameId]
-
+            with sse_lock:
+                if gameId in sse_clients and q in sse_clients[gameId]:
+                    sse_clients[gameId].remove(q)
+                    logger.info(f"File {id(q)} retirée de sse_clients[{gameId}]. Clients restants: {len(sse_clients[gameId])}")
+                    if not sse_clients[gameId]:
+                        del sse_clients[gameId]
+                        logger.info(f"Aucun client restant pour le jeu {gameId}, entrée supprimée.")
     return Response(generate(), mimetype='text/event-stream')
+
+@app.route('/')
+def index():
+    return "Serveur SSE pour le bingo. Connectez-vous à /bingo-stream/<gameId> pour recevoir les mises à jour."
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=5000, threaded=True)
