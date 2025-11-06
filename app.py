@@ -87,13 +87,13 @@ try:
 except Exception as e:
     logging.error(f"Error connecting to MongoDB Atlas: {e}")
 
-@app.route('/')
-def serve_page():
-    """
-    Serves the index.html page for a web browser.
-    """
-    logging.info("GET request received for / endpoint. Serving index.html.")
-    return render_template('index.html')
+# @app.route('/')
+# def serve_page():
+#     """
+#     Serves the index.html page for a web browser.
+#     """
+#     logging.info("GET request received for / endpoint. Serving index.html.")
+#     return render_template('index.html')
 
 @app.route('/players/<gameId>', methods=['GET'])
 def get_players(gameId):
@@ -204,7 +204,7 @@ def create_game():
             "name": player_name,
             "gameId": new_game_id,
             "playerId": new_player_id,
-            "gameStarted": False,
+            "gameStarted": True,
             "bingo_card_id": bingo_card_id
         }
         players_collection.insert_one(new_player)
@@ -352,50 +352,88 @@ r.set('key', 'redis-py')
 print(r.get('key').decode())
 
 BINGO_NUMBERS_KEY = "bingo:numbers"
+GAME_ACTIVE_KEY = "bingo:game_active"
 
-def initialize_bingo_numbers():
-    if not r.exists(BINGO_NUMBERS_KEY):
-        r.sadd(BINGO_NUMBERS_KEY, *[str(i) for i in range(1, 26)])  # Stocke les nombres comme chaînes
-        logger.info("Liste des nombres de bingo initialisée (1-25).")
+def initialize_bingo_numbers(game_id):
+    """Initialise la liste des nombres pour une partie."""
+    key = f"{BINGO_NUMBERS_KEY}:{game_id}"
+    if not r.exists(key):
+        r.sadd(key, *map(str, range(1, 26)))
+        logger.info(f"Liste des nombres initialisée pour la partie {game_id}.")
 
-def bingo_number_sender():
-    logger.info("Thread bingo_number_sender démarré avec Redis !")
-    while r.scard(BINGO_NUMBERS_KEY) > 0:
-        # Récupère et décode le nombre
-        number_bytes = r.srandmember(BINGO_NUMBERS_KEY)
-        number = number_bytes.decode('utf-8')  # Décode en chaîne
-        r.srem(BINGO_NUMBERS_KEY, number_bytes)  # Supprime le byte original
+def is_game_active(game_id):
+    active = r.get(f"{GAME_ACTIVE_KEY}:{game_id}")
+    logger.info(f"Partie {game_id} : Flag d'activité = {active}")
+    return active == b"true"
 
-        logger.info(f"Nombre tiré : {number}")  # Affiche le nombre décodé
+def bingo_number_sender(game_id):
+    logger.info(f"Thread démarré pour la partie {game_id} !")
+    key = f"{BINGO_NUMBERS_KEY}:{game_id}"
 
-        # Envoie le nombre aux clients (déjà décodé)
-        r.publish("bingo_channel", f"event: bingo_number\ndata: {number}\n\n")
+    while True:  # Boucle infinie (on gère l'arrêt via le flag)
+        if not is_game_active(game_id):
+            logger.info(f"Partie {game_id} : Partie désactivée. Arrêt des tirages.")
+            break
+
+        if r.scard(key) == 0:
+            logger.info(f"Partie {game_id} : Tous les nombres ont été tirés. Réinitialisation.")
+            initialize_bingo_numbers(game_id)  # Réinitialise les nombres
+            continue  # Recommence la boucle
+
+        # Logs de débogage
+        logger.info(f"Partie {game_id} : État = {is_game_active(game_id)}, Nombres restants = {r.scard(key)}")
+
+        number = r.srandmember(key)
+        r.srem(key, number)
+        logger.info(f"Partie {game_id} : Nombre tiré = {number}")
+        r.publish(f"bingo_channel:{game_id}", f"event: bingo_number\ndata: {number}\n\n")
         time.sleep(7)
+@app.route('/start-game/<gameId>')
+def start_game(gameId):
+    """Démarre une nouvelle partie et lance les tirages."""
+    if is_game_active(gameId):
+        return f"Une partie est déjà en cours pour l'ID {gameId}.", 400
 
-    logger.info("Tous les nombres ont été tirés. Arrêt des tirages.")
+    # Initialise les nombres et active la partie
+    initialize_bingo_numbers(gameId)
+    r.set(f"{GAME_ACTIVE_KEY}:{gameId}", "true")
 
-# Initialise la liste des nombres
-initialize_bingo_numbers()
+    # Démarre le thread pour cette partie
+    threading.Thread(target=bingo_number_sender, args=(gameId,), daemon=True).start()
+    return f"Partie {gameId} démarrée ! Les tirages commencent."
 
-# Démarre le thread
-threading.Thread(target=bingo_number_sender, daemon=True).start()
-logger.info("Thread Redis démarré.")
+@app.route('/stop-game/<gameId>')
+def stop_game(gameId):
+    """Arrête une partie en cours."""
+    r.set(f"{GAME_ACTIVE_KEY}:{gameId}", "false")
+    return f"Partie {gameId} arrêtée."
 
 @app.route('/bingo-stream/<gameId>')
 def bingo_stream(gameId):
+    """Flux SSE pour une partie spécifique."""
     pubsub = r.pubsub()
-    pubsub.subscribe("bingo_channel")
-    logger.info(f"Client {gameId} abonné au canal Redis.")
-    #reset here will cause problem in the future, need the owner to be the trigger of the reset
-    reset_bingo()
+    pubsub.subscribe(f"bingo_channel:{gameId}")
+    logger.info(f"Client connecté à la partie {gameId}.")
 
     def generate():
         for message in pubsub.listen():
             if message["type"] == "message":
-                logger.info(f"Message envoyé au client {gameId}: {message['data']}")
                 yield message["data"]
 
     return Response(generate(), mimetype='text/event-stream')
+
+
+#For testing purpose ONLY REMOVE AFTER BRANCHING
+@app.route('/')
+def index():
+    return """
+    <h1>Serveur de Bingo</h1>
+    <ul>
+        <li><a href="/start-game/1">Démarrer la partie 1</a></li>
+        <li><a href="/stop-game/1">Arrêter la partie 1</a></li>
+        <li>Flux SSE : /bingo-stream/&lt;gameId&gt;</li>
+    </ul>
+    """
 
 
 # A ETUDIER : utile ?
