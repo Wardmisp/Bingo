@@ -363,8 +363,8 @@ def initialize_bingo_numbers(game_id):
 
 def is_game_active(game_id):
     active = r.get(f"{GAME_ACTIVE_KEY}:{game_id}")
-    logger.info(f"Partie {game_id} : Flag d'activité = {active}")  # Log de débogage
-    return active == "true"  # Vérifie que la valeur est bien "true"
+    logger.info(f"Partie {game_id} : Flag d'activité = {active}")
+    return active == b"true"
 
 def bingo_number_sender(game_id):
     logger.info(f"Thread démarré pour la partie {game_id} !")
