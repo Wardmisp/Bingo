@@ -362,23 +362,32 @@ def initialize_bingo_numbers(game_id):
         logger.info(f"Liste des nombres initialisée pour la partie {game_id}.")
 
 def is_game_active(game_id):
-    """Vérifie si une partie est en cours."""
-    return r.get(f"{GAME_ACTIVE_KEY}:{game_id}") == "true"
+    active = r.get(f"{GAME_ACTIVE_KEY}:{game_id}")
+    logger.info(f"Partie {game_id} : Flag d'activité = {active}")  # Log de débogage
+    return active == "true"  # Vérifie que la valeur est bien "true"
 
 def bingo_number_sender(game_id):
-    """Thread qui envoie les nombres pour une partie spécifique."""
-    key = f"{BINGO_NUMBERS_KEY}:{game_id}"
     logger.info(f"Thread démarré pour la partie {game_id} !")
+    key = f"{BINGO_NUMBERS_KEY}:{game_id}"
 
-    while is_game_active(game_id) and r.scard(key) > 0:
+    while True:  # Boucle infinie (on gère l'arrêt via le flag)
+        if not is_game_active(game_id):
+            logger.info(f"Partie {game_id} : Partie désactivée. Arrêt des tirages.")
+            break
+
+        if r.scard(key) == 0:
+            logger.info(f"Partie {game_id} : Tous les nombres ont été tirés. Réinitialisation.")
+            initialize_bingo_numbers(game_id)  # Réinitialise les nombres
+            continue  # Recommence la boucle
+
+        # Logs de débogage
+        logger.info(f"Partie {game_id} : État = {is_game_active(game_id)}, Nombres restants = {r.scard(key)}")
+
         number = r.srandmember(key)
         r.srem(key, number)
         logger.info(f"Partie {game_id} : Nombre tiré = {number}")
         r.publish(f"bingo_channel:{game_id}", f"event: bingo_number\ndata: {number}\n\n")
         time.sleep(7)
-
-    logger.info(f"Partie {game_id} : Tous les nombres ont été tirés ou partie arrêtée.")
-
 @app.route('/start-game/<gameId>')
 def start_game(gameId):
     """Démarre une nouvelle partie et lance les tirages."""
