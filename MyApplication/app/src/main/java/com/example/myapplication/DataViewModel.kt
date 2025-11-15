@@ -216,7 +216,7 @@ class DataViewModel(
 
     fun launchGame() {
         viewModelScope.launch {
-            when (val result = gameRepository.launchGame(_gameId.value!!)) {
+            when (gameRepository.launchGame(_gameId.value!!)) {
                 is ApiResult.Error -> Log.i("BingoInfo", "launchGame: failed")
                 ApiResult.Loading -> Log.i("BingoInfo", "launchGame: loading")
                 is ApiResult.Success<*> -> Log.i(
