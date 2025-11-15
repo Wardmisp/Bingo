@@ -31,6 +31,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.example.bingoapp.ui.screens.JoinGameScreen
 import com.example.myapplication.bingocards.BingoCardsRepository
+import com.example.myapplication.gamestatus.GameRepository
 import com.example.myapplication.network.RetrofitInstance
 import com.example.myapplication.ui.composable.BingoCardScreen
 import com.example.myapplication.ui.screens.SetGameScreen
@@ -50,7 +51,8 @@ fun MainScreen() {
                 apiService = RetrofitInstance.apiService,
                 applicationContext = application
             ),
-            bingoCardsRepository = BingoCardsRepository(apiService = RetrofitInstance.apiService)
+            bingoCardsRepository = BingoCardsRepository(apiService = RetrofitInstance.apiService),
+            gameRepository = GameRepository(apiService = RetrofitInstance.apiService)
         )
     )
     val gameStarted by viewModel.gameStarted.collectAsState()

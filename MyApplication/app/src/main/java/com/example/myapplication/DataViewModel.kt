@@ -215,7 +215,16 @@ class DataViewModel(
 
 
     fun launchGame() {
-        // Implementation for launching the game
+        viewModelScope.launch {
+            when (val result = gameRepository.launchGame(_gameId.value!!)) {
+                is ApiResult.Error -> Log.i("BingoInfo", "launchGame: failed")
+                ApiResult.Loading -> Log.i("BingoInfo", "launchGame: loading")
+                is ApiResult.Success<*> -> Log.i(
+                    "BingoInfo",
+                    "launchGame: a game has been launched!"
+                )
+            }
+        }
     }
 
     fun removePlayer(player: Player) {

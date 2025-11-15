@@ -33,9 +33,18 @@ interface ApiService {
                 @Path("playerId") playerId: String
         ): BingoCard
 
+        @GET("player-card/{cardId}")
+        suspend fun getBingoCardByCardId(
+                @Path("cardId") cardId: String
+        ): BingoCard
+
         @POST("player-card/{cardId}/{number}")
         suspend fun clickNumberOnBingoCard(
                 @Path("number") number: Int,
                 @Path("cardId") cardId: String?
         ): Boolean
+        @GET("start-game/{gameId}")
+        suspend fun launchGame(
+                @Path("gameId") gameId: Int
+        ): Response<Unit>
 }
