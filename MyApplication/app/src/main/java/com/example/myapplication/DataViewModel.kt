@@ -9,6 +9,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.myapplication.bingocards.BingoCard
 import com.example.myapplication.bingocards.BingoCardsRepository
+import com.example.myapplication.gamestatus.GameRepository
 import com.example.myapplication.network.ApiResult
 import com.example.myapplication.player.Player
 import com.example.myapplication.ui.utils.UiState
@@ -18,15 +19,13 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
-import okhttp3.Response
 
 class DataViewModel(
     application: Application,
     private val playersRepository: PlayersRepository,
-    private val bingoCardsRepository: BingoCardsRepository
-) : AndroidViewModel(application),
-    SseClient.SseListener {
-
+    private val bingoCardsRepository: BingoCardsRepository,
+    private val gameRepository: GameRepository,
+) : AndroidViewModel(application) {
     private val _uiState = MutableStateFlow<UiState>(UiState.Initial)
     val uiState: StateFlow<UiState> = _uiState
 
@@ -43,15 +42,64 @@ class DataViewModel(
     val nextNumber: StateFlow<Int?> = _nextNumber
 
     private val _playerId = MutableStateFlow<String?>(null)
-
     val playerId: StateFlow<String?> = _playerId
+
+    private val _gameStatusMessage = MutableStateFlow<String?>(null)
+    val gameStatusMessage: StateFlow<String?> = _gameStatusMessage
+
+    // État de la connexion SSE
+    val connectionState: StateFlow<SseClient.ConnectionState> get() = sseClient.connectionState
+
     private lateinit var sseClient: SseClient
-
     private var pollingJob: Job? = null
-
     private val soundPlayer = SoundPlayer(application.applicationContext)
 
     init {
+        sseClient = SseClient(viewModelScope) // Initialisation ici
+
+        // Collecte des événements SSE
+        viewModelScope.launch {
+            sseClient.events.collect { (event, data) ->
+                Log.d("SSETESTING", "Received event: $event, Data: $data")
+                when (event) {
+                    "bingo_number" -> {
+                        try {
+                            val cleanData = data.removePrefix("b'").removeSuffix("'")
+                            val number = cleanData.toInt()
+                            _nextNumber.value = number
+                            soundPlayer.playSuccessSound()
+                        } catch (e: NumberFormatException) {
+                            Log.e("DataViewModel", "onEvent: Error parsing number: $data", e)
+                        }
+                    }
+                    "game_over" -> {
+                        Log.d("DataViewModel", "Game over event received with data: $data")
+                        _gameStatusMessage.value = data
+                    }
+                    else -> {
+                        Log.w("SSETESTING", "Received unhandled event type: $event")
+                    }
+                }
+            }
+        }
+
+        // Collecte des changements d'état de connexion
+        viewModelScope.launch {
+            sseClient.connectionState.collect { state ->
+                when (state) {
+                    is SseClient.ConnectionState.Error -> {
+                        Log.e("SSETESTING", "Connection failed: ${state.message}")
+                        // Reconnecter après un délai
+                        delay(5000)
+                        _gameId.value?.let { gameId -> connectToBingoStream(gameId) }
+                    }
+                    else -> {
+                        // Optionnel: log des autres états
+                        Log.d("SSETESTING", "Connection state changed: $state")
+                    }
+                }
+            }
+        }
 
         val (gameId, playerId) = playersRepository.getPlayerInfo()
         _gameId.value = gameId
@@ -70,56 +118,18 @@ class DataViewModel(
                 }
             }
         }
-
     }
 
     fun connectToBingoStream(gameId: String) {
-        sseClient = SseClient(this)
         sseClient.connect(gameId)
     }
 
-    override fun onEvent(event: String, data: String) {
-        // Log the full event for debugging
-        Log.d("SSETESTING", "Received event: $event, Data: $data")
-
-        when (event) {
-            "bingo_number" -> {
-                try {
-                    // Convert the data string to an Int and update your state
-                    val number = data.toInt()
-                    _nextNumber.value = number
-                    soundPlayer.playSuccessSound()
-                } catch (e: NumberFormatException) {
-                    Log.e("DataViewModel", "onEvent: Error parsing number: $data", e)
-                }
-            }
-            "game_over" -> {
-                // Handle the game over event here, e.g., show a message to the user
-                Log.d("DataViewModel", "onEvent: Game over event received.")
-                // _gameStatus.value = "Game Over"
-            }
-            else -> {
-                Log.w("SSETESTING", "Received unhandled event type: $event")
-            }
-        }
-    }
-
-    override fun onFailure(t: Throwable, response: Response?) {
-        // Your failure handling code remains the same
-        Log.e("SSETESTING", "Connection failed", t)
-    }
-
-    // Ensure you disconnect when the ViewModel is no longer needed
+    // Le reste de ton code existant reste inchangé...
     override fun onCleared() {
         super.onCleared()
-
         playersRepository.clearPlayerInfo()
-
         soundPlayer.release()
-
-        if (::sseClient.isInitialized) {
-            sseClient.disconnect()
-        }
+        sseClient.disconnect()
     }
 
     private suspend fun fetchPlayers(gameId: String) {
@@ -127,7 +137,6 @@ class DataViewModel(
             is ApiResult.Success -> {
                 val players = result.data
                 _uiState.value = UiState.Success(players)
-                // Check if the game has started
                 val hostPlayer = players.firstOrNull { it.isHost }
                 if (hostPlayer?.gameStarted == true) {
                     _gameStarted.value = true
@@ -148,9 +157,7 @@ class DataViewModel(
             when (val result = playersRepository.createGame(playerName)) {
                 is ApiResult.Success -> {
                     val registration = result.data
-                    // Save player info using the repository
                     playersRepository.savePlayerInfo(registration.gameId, registration.playerId)
-                    // Update ViewModel state
                     _gameId.value = registration.gameId
                     _playerId.value = registration.playerId
                 }
@@ -170,9 +177,7 @@ class DataViewModel(
             when (val result = playersRepository.joinGame(playerName, gameId)) {
                 is ApiResult.Success -> {
                     val registration = result.data
-                    // Save player info using the repository
                     playersRepository.savePlayerInfo(registration.gameId, registration.playerId)
-                    // Update ViewModel state
                     _gameId.value = registration.gameId
                     _playerId.value = registration.playerId
                 }
@@ -186,17 +191,14 @@ class DataViewModel(
         }
     }
 
-
-
     fun onNumberClicked(number: Int) {
         viewModelScope.launch {
             when (val result = bingoCardsRepository.clickNumber(number, bingoCardState.value?.cardId)) {
                 is ApiResult.Success -> {
                     if (result.data) {
                         if (uiState.value is UiState.Success) {
-                            val currentPlayer = (uiState.value as UiState.Success).players.firstOrNull { it.gameId == gameId.value }
-                            if (currentPlayer != null) {
-                                fetchBingoCard(currentPlayer.gameId, currentPlayer.playerId)
+                            if (playerId.value != null) {
+                                fetchBingoCardByCardId(bingoCardState.value?.cardId!!)
                             }
                         }
                     }
@@ -209,31 +211,42 @@ class DataViewModel(
                 }
             }
         }
-        //TODO("manage web service return to have better logging system on bingo cards update after click")
-
     }
-
 
     fun launchGame() {
         viewModelScope.launch {
             when (gameRepository.launchGame(_gameId.value!!)) {
                 is ApiResult.Error -> Log.i("BingoInfo", "launchGame: failed")
                 ApiResult.Loading -> Log.i("BingoInfo", "launchGame: loading")
-                is ApiResult.Success<*> -> Log.i(
-                    "BingoInfo",
-                    "launchGame: a game has been launched!"
-                )
+                is ApiResult.Success<*> -> Log.i("BingoInfo", "launchGame: a game has been launched!")
             }
         }
     }
 
     fun removePlayer(player: Player) {
-        // Implementation for removing a player
+        playersRepository.clearPlayerInfo()
+        // TODO("IMPLEMENT REMOVE PLAYER SERVER SIDE")
     }
 
-    fun fetchBingoCard(gameId: String, playerId: String) {
+    fun fetchBingoCardForPlayerId(gameId: String, playerId: String) {
         viewModelScope.launch {
-            when (val result = bingoCardsRepository.fetchBingoCard(gameId, playerId)) {
+            when (val result = bingoCardsRepository.fetchBingoCardForPlayerId(gameId, playerId)) {
+                is ApiResult.Success -> {
+                    _bingoCardState.value = result.data
+                }
+                is ApiResult.Error -> {
+                    // Handle error state for bingo card fetching
+                }
+                is ApiResult.Loading -> {
+                    // Handle loading state
+                }
+            }
+        }
+    }
+
+    fun fetchBingoCardByCardId(cardId: String) {
+        viewModelScope.launch {
+            when (val result = bingoCardsRepository.fetchBingoCardByCardId(cardId)) {
                 is ApiResult.Success -> {
                     _bingoCardState.value = result.data
                 }

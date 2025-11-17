@@ -5,7 +5,7 @@ import com.example.myapplication.network.ApiService
 import java.io.IOException
 
 class BingoCardsRepository(private val apiService: ApiService) {
-    suspend fun fetchBingoCard(gameId: String, playerId: String): ApiResult<BingoCard> {
+    suspend fun fetchBingoCardForPlayerId(gameId: String, playerId: String): ApiResult<BingoCard> {
         return try {
             val bingoCard = apiService.getBingoCard(gameId, playerId)
             ApiResult.Success(bingoCard)
@@ -16,6 +16,14 @@ class BingoCardsRepository(private val apiService: ApiService) {
         }
     }
 
+    suspend fun fetchBingoCardByCardId(cardId: String): ApiResult<BingoCard> {
+        return try {
+            val bingoCard = apiService.getBingoCardByCardId(cardId)
+            ApiResult.Success(bingoCard)
+        } catch (e: IOException) {
+            ApiResult.Error("Network error: ${e.message}")
+        }
+    }
     suspend fun clickNumber(
         number: Int,
         cardId: String?
