@@ -25,4 +25,8 @@ class GameRepository(private val apiService: ApiService) {
         }
     }
 
+    suspend fun endGame(gameId: String): ApiResult<Boolean>{
+
+        return TODO("Disconnect the client and call this ending game if game owner")
+    }
 }

@@ -89,7 +89,6 @@ class DataViewModel(
                 when (state) {
                     is SseClient.ConnectionState.Error -> {
                         Log.e("SSETESTING", "Connection failed: ${state.message}")
-                        // Reconnecter après un délai
                         delay(5000)
                         _gameId.value?.let { gameId -> connectToBingoStream(gameId) }
                     }

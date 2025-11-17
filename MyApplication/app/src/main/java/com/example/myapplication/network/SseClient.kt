@@ -1,5 +1,4 @@
 // SseClient.kt
-import android.util.Log
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -60,17 +59,17 @@ class SseClient(private val coroutineScope: CoroutineScope) {
                     }
 
                     _connectionState.value = ConnectionState.Connected
-                    val reader = BufferedReader(InputStreamReader(response.body?.byteStream()))
+                    val reader = BufferedReader(InputStreamReader(response.body.byteStream()))
                     var line = ":"
                     var currentEvent = "message"
                     var currentData = StringBuilder()
 
                     while (isConnected.get() && reader.readLine().also { line = it } != null) {
                         when {
-                            line!!.startsWith(":") -> continue
-                            line!!.startsWith("event:") -> currentEvent = line!!.substring(7).trim()
-                            line!!.startsWith("data:") -> currentData.append(line!!.substring(5).trim())
-                            line!!.isEmpty() -> {
+                            line.startsWith(":") -> continue
+                            line.startsWith("event:") -> currentEvent = line.substring(7).trim()
+                            line.startsWith("data:") -> currentData.append(line.substring(5).trim())
+                            line.isEmpty() -> {
                                 if (currentData.isNotEmpty()) {
                                     _events.emit(Pair(currentEvent, currentData.toString()))
                                     currentData = StringBuilder()

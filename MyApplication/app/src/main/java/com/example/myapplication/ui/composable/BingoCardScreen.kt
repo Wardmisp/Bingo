@@ -40,7 +40,6 @@ fun BingoCardScreen(
     viewModel: DataViewModel = viewModel()
 ) {
     // États collectés
-    val uiState by viewModel.uiState.collectAsState()
     val bingoCardState by viewModel.bingoCardState.collectAsState()
     val gameId by viewModel.gameId.collectAsState()
     val nextNumber by viewModel.nextNumber.collectAsState()
